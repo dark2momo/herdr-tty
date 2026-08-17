@@ -35,7 +35,7 @@ func RunGateway(ctx context.Context, config Config, stdin io.Reader, stdout, std
 		return err
 	}
 	backendAddress := net.JoinHostPort("127.0.0.1", strconv.Itoa(backendPort))
-	command := exec.Command(ttydPath, config.BackendArgs(backendPort)...)
+	command := newTtydCommand(ctx, ttydPath, config.BackendArgs(backendPort), os.Environ())
 	command.Stdin = stdin
 	command.Stdout = stdout
 	command.Stderr = stderr

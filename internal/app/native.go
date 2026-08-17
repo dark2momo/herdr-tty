@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 )
 
@@ -23,7 +24,7 @@ func RunNative(ctx context.Context, config Config, stdin io.Reader, stdout, stde
 		return fmt.Errorf("find Herdr: %w", err)
 	}
 
-	command := exec.CommandContext(ctx, ttydPath, config.NativeArgs()...)
+	command := newTtydCommand(ctx, ttydPath, config.NativeArgs(), os.Environ())
 	command.Stdin = stdin
 	command.Stdout = stdout
 	command.Stderr = stderr
