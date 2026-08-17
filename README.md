@@ -7,9 +7,9 @@ The primary design rule is to stay lightweight: one small Go program, the Go
 standard library, and the existing ttyd/Herdr binaries. No Node.js runtime,
 frontend framework, database, or separate control plane.
 
-This first version intentionally stays minimal: it starts ttyd with writable
-terminal access, ttyd's native Basic Authentication, same-origin WebSocket
-checks, and a configurable client limit.
+It starts ttyd as a loopback-only backend and puts a small Cookie-authenticated
+Go gateway in front. The gateway keeps credentials out of ttyd's process
+arguments, checks WebSocket origins, and enforces a configurable client limit.
 
 ## Requirements
 
@@ -43,6 +43,8 @@ Options:
 --herdr         Herdr executable (default herdr)
 --cwd           working directory exposed to Herdr (default current directory)
 --max-clients   maximum concurrent ttyd clients (default 3)
+--auth          authentication mode: form or native (default form)
+--session-ttl   login lifetime (default 168h)
 ```
 
 ## Security
@@ -51,9 +53,14 @@ The default bind address is loopback. Exposing a writable web terminal grants
 shell access with your user privileges; put it behind a network boundary you
 trust.
 
-ttyd's native authentication receives `user:password` as a process argument.
-This is kept as the minimal baseline and may expose the credential to local
-process inspection. Do not reuse an important password.
+The default form login uses an HTTP-only, same-site Cookie signed by an
+in-memory random key. Restarting Herdr Web invalidates existing sessions.
+Credentials stay in Herdr Web and are not passed to ttyd.
+
+The original ttyd Basic Authentication mode remains available with
+`--auth native`. Native mode receives `user:password` as a ttyd process
+argument and may expose the credential to local process inspection. Do not
+reuse an important password with that mode.
 
 ## Scope
 

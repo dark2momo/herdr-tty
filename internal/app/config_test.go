@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseConfig(t *testing.T) {
@@ -22,8 +23,25 @@ func TestParseConfig(t *testing.T) {
 	if config.Listen != "127.0.0.1:9000" || config.MaxClients != 4 {
 		t.Fatalf("unexpected config: %#v", config)
 	}
+	if config.AuthMode != "form" || config.SessionTTL != 7*24*time.Hour {
+		t.Fatalf("unexpected auth defaults: %#v", config)
+	}
 	if !reflect.DeepEqual(config.HerdrArgs, []string{"--session", "work"}) {
 		t.Fatalf("unexpected Herdr args: %#v", config.HerdrArgs)
+	}
+}
+
+func TestBackendArgsDoNotContainCredentials(t *testing.T) {
+	config := Config{
+		Herdr:      "herdr",
+		CWD:        "/workspace",
+		MaxClients: 3,
+		Username:   "alice",
+		Password:   "secret",
+	}
+	joined := strings.Join(config.BackendArgs(17682), " ")
+	if strings.Contains(joined, config.Username) || strings.Contains(joined, config.Password) {
+		t.Fatalf("backend args contain credentials: %q", joined)
 	}
 }
 

@@ -1,12 +1,20 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os/exec"
 )
 
-func RunNative(config Config, stdin io.Reader, stdout, stderr io.Writer) error {
+func Run(ctx context.Context, config Config, stdin io.Reader, stdout, stderr io.Writer) error {
+	if config.AuthMode == "native" {
+		return RunNative(ctx, config, stdin, stdout, stderr)
+	}
+	return RunGateway(ctx, config, stdin, stdout, stderr)
+}
+
+func RunNative(ctx context.Context, config Config, stdin io.Reader, stdout, stderr io.Writer) error {
 	ttydPath, err := exec.LookPath(config.Ttyd)
 	if err != nil {
 		return fmt.Errorf("find ttyd: %w", err)
@@ -15,7 +23,7 @@ func RunNative(config Config, stdin io.Reader, stdout, stderr io.Writer) error {
 		return fmt.Errorf("find Herdr: %w", err)
 	}
 
-	command := exec.Command(ttydPath, config.NativeArgs()...)
+	command := exec.CommandContext(ctx, ttydPath, config.NativeArgs()...)
 	command.Stdin = stdin
 	command.Stdout = stdout
 	command.Stderr = stderr

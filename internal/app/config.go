@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -20,6 +21,8 @@ type Config struct {
 	Herdr      string
 	CWD        string
 	MaxClients int
+	AuthMode   string
+	SessionTTL time.Duration
 	Username   string
 	Password   string
 	HerdrArgs  []string
@@ -42,6 +45,8 @@ func ParseConfig(args []string, getenv getenvFunc, getwd getwdFunc) (Config, err
 	flags.StringVar(&config.Herdr, "herdr", "herdr", "Herdr executable")
 	flags.StringVar(&config.CWD, "cwd", workingDirectory, "working directory")
 	flags.IntVar(&config.MaxClients, "max-clients", 3, "maximum concurrent clients")
+	flags.StringVar(&config.AuthMode, "auth", "form", "authentication mode: form or native")
+	flags.DurationVar(&config.SessionTTL, "session-ttl", 7*24*time.Hour, "login session lifetime")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, err
 	}
@@ -70,6 +75,12 @@ func (config Config) Validate() error {
 	if config.MaxClients < 1 {
 		return errors.New("--max-clients must be at least 1")
 	}
+	if config.AuthMode != "form" && config.AuthMode != "native" {
+		return errors.New("--auth must be form or native")
+	}
+	if config.SessionTTL <= 0 {
+		return errors.New("--session-ttl must be positive")
+	}
 	if config.Ttyd == "" || config.Herdr == "" {
 		return errors.New("--ttyd and --herdr cannot be empty")
 	}
@@ -86,6 +97,20 @@ func (config Config) Validate() error {
 		return fmt.Errorf("%s cannot contain a newline", passwordEnv)
 	}
 	return nil
+}
+
+func (config Config) BackendArgs(port int) []string {
+	args := []string{
+		"--debug", "3",
+		"--interface", "127.0.0.1",
+		"--port", strconv.Itoa(port),
+		"--writable",
+		"--max-clients", strconv.Itoa(config.MaxClients),
+		"--cwd", config.CWD,
+		"--terminal-type", "xterm-256color",
+		config.Herdr,
+	}
+	return append(args, config.HerdrArgs...)
 }
 
 func (config Config) NativeArgs() []string {
