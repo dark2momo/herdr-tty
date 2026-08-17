@@ -56,6 +56,12 @@ func RunGateway(ctx context.Context, config Config, stdin io.Reader, stdout, std
 	}
 	target := &url.URL{Scheme: "http", Host: backendAddress}
 	proxy := httputil.NewSingleHostReverseProxy(target)
+	director := proxy.Director
+	proxy.Director = func(request *http.Request) {
+		director(request)
+		request.Header.Set("Accept-Encoding", "identity")
+	}
+	proxy.ModifyResponse = injectMobileAssets
 	proxy.ErrorHandler = func(writer http.ResponseWriter, _ *http.Request, proxyErr error) {
 		http.Error(writer, "terminal backend unavailable", http.StatusBadGateway)
 		fmt.Fprintf(stderr, "proxy ttyd: %v\n", proxyErr)
@@ -151,6 +157,9 @@ func newGatewayHandler(auth *authenticator, upstream http.Handler) http.Handler 
 		}
 		if isWebSocket(request) && (!sameOrigin(request) || request.Header.Get("Origin") == "") {
 			http.Error(writer, "cross-origin WebSocket denied", http.StatusForbidden)
+			return
+		}
+		if serveMobileAsset(writer, request) {
 			return
 		}
 		upstream.ServeHTTP(writer, request)

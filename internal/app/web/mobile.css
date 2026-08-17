@@ -1,0 +1,21 @@
+:root {
+  --herdr-web-viewport-height: 100dvh;
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  html,
+  body {
+    height: var(--herdr-web-viewport-height);
+    min-height: 0;
+    overscroll-behavior: none;
+  }
+
+  #terminal-container {
+    height: var(--herdr-web-viewport-height) !important;
+  }
+
+  .xterm {
+    touch-action: none;
+  }
+}
+

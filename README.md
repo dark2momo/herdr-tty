@@ -7,6 +7,10 @@ The primary design rule is to stay lightweight: one small Go program, the Go
 standard library, and the existing ttyd/Herdr binaries. No Node.js runtime,
 frontend framework, database, or separate control plane.
 
+On touch devices, a small vanilla JavaScript/CSS layer adds drag and inertial
+scrolling while leaving keyboard events untouched. It emits standard wheel
+events, so xterm.js and Herdr retain their native scroll and mouse semantics.
+
 It starts ttyd as a loopback-only backend and puts a small Cookie-authenticated
 Go gateway in front. The gateway keeps credentials out of ttyd's process
 arguments, checks WebSocket origins, and enforces a configurable client limit.
@@ -46,6 +50,15 @@ Options:
 --auth          authentication mode: form or native (default form)
 --session-ttl   login lifetime (default 168h)
 ```
+
+## Mobile behavior
+
+- One-finger drag scrolls the active Herdr view with light inertia.
+- The terminal follows `visualViewport` when a mobile keyboard changes the
+  visible height.
+- The browser context menu is suppressed inside the web app.
+- No `keydown`, `keyup`, or `keypress` handler is installed, so Herdr keyboard
+  shortcuts continue through ttyd unchanged.
 
 ## Security
 
