@@ -1,5 +1,7 @@
 # Herdr Web
 
+[![check](https://github.com/dark2momo/herdr-web/actions/workflows/check.yml/badge.svg)](https://github.com/dark2momo/herdr-web/actions/workflows/check.yml)
+
 A small web entry point for [Herdr](https://herdr.dev), powered by
 [ttyd](https://github.com/tsl0922/ttyd).
 

@@ -1,8 +1,16 @@
-.PHONY: build test
+.PHONY: build check test
+
+GOWORK ?= off
+export GOWORK
 
 build:
-	go build -o bin/herdr-web ./cmd/herdr-web
+	mkdir -p bin
+	go build -trimpath -ldflags="-s -w" -o bin/herdr-web ./cmd/herdr-web
 
 test:
 	go test ./...
 
+check:
+	go test -race ./...
+	go vet ./...
+	go build ./...
