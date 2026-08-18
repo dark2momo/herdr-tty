@@ -3,6 +3,7 @@
 
   const root = document.documentElement;
   const viewport = window.visualViewport;
+  const isIOSChrome = /\bCriOS\//.test(navigator.userAgent) && navigator.maxTouchPoints > 0;
   let lastViewportMetrics = "";
   let viewportFrame = 0;
   let viewportTimers = [];
@@ -15,13 +16,26 @@
   }
 
   function updateViewport(forceFit = false) {
-    const height = Math.ceil(viewport ? viewport.height : window.innerHeight);
-    const width = Math.ceil(viewport ? viewport.width : window.innerWidth);
+    const layoutHeight = window.innerHeight;
+    const visualHeight = viewport ? viewport.height : layoutHeight;
+    // WKWebView can retain a small false keyboard inset after an input is
+    // focused in iOS Chrome. Ignore only that small inset; a docked keyboard
+    // still uses the genuinely smaller visual viewport.
+    const useLayoutViewport =
+      isIOSChrome &&
+      layoutHeight > visualHeight &&
+      layoutHeight - visualHeight < layoutHeight / 4;
+    const height = Math.ceil(useLayoutViewport ? layoutHeight : visualHeight);
+    const width = Math.ceil(useLayoutViewport || !viewport ? window.innerWidth : viewport.width);
     const top = Math.round(
-      viewport ? Math.max(viewport.offsetTop, viewport.pageTop - window.scrollY, 0) : 0,
+      viewport && !useLayoutViewport
+        ? Math.max(viewport.offsetTop, viewport.pageTop - window.scrollY, 0)
+        : 0,
     );
     const left = Math.round(
-      viewport ? Math.max(viewport.offsetLeft, viewport.pageLeft - window.scrollX, 0) : 0,
+      viewport && !useLayoutViewport
+        ? Math.max(viewport.offsetLeft, viewport.pageLeft - window.scrollX, 0)
+        : 0,
     );
     const metrics = `${width}:${height}:${left}:${top}`;
     if (metrics !== lastViewportMetrics) {
