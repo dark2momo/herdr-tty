@@ -10,8 +10,12 @@
   function updateViewport() {
     const height = Math.ceil(viewport ? viewport.height : window.innerHeight);
     const width = Math.ceil(viewport ? viewport.width : window.innerWidth);
-    const top = Math.round(viewport ? viewport.offsetTop : 0);
-    const left = Math.round(viewport ? viewport.offsetLeft : 0);
+    const top = Math.round(
+      viewport ? Math.max(viewport.offsetTop, viewport.pageTop - window.scrollY, 0) : 0,
+    );
+    const left = Math.round(
+      viewport ? Math.max(viewport.offsetLeft, viewport.pageLeft - window.scrollX, 0) : 0,
+    );
     const metrics = `${width}:${height}:${left}:${top}`;
     if (metrics === lastViewportMetrics) return;
     lastViewportMetrics = metrics;
