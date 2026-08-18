@@ -11,6 +11,8 @@
   let viewportFrame = 0;
   let viewportTimers = [];
   let dispatchingResize = false;
+  let restingViewportWidth = 0;
+  let restingViewportHeight = 0;
 
   function notifyTerminalResize() {
     dispatchingResize = true;
@@ -21,22 +23,31 @@
   function updateViewport(forceFit = false) {
     const layoutHeight = window.innerHeight;
     const visualHeight = viewport ? viewport.height : layoutHeight;
-    // Ignore iPad Chrome's small stale focus inset after the keyboard closes,
-    // while retaining the smaller visual viewport when a keyboard is visible.
-    const useLayoutViewport =
-      !viewport ||
-      (isIPadChrome &&
-        layoutHeight > visualHeight &&
-        layoutHeight - visualHeight < layoutHeight / 4);
-    const height = Math.ceil(useLayoutViewport ? layoutHeight : visualHeight);
-    const width = Math.ceil(useLayoutViewport || !viewport ? window.innerWidth : viewport.width);
+    const layoutWidth = window.innerWidth;
+    if (isIPadChrome) {
+      if (Math.abs(layoutWidth - restingViewportWidth) > 1) {
+        restingViewportWidth = layoutWidth;
+        restingViewportHeight = Math.max(layoutHeight, visualHeight);
+      } else {
+        restingViewportHeight = Math.max(restingViewportHeight, layoutHeight, visualHeight);
+      }
+    }
+    // iPad Chrome can leave both viewport APIs slightly short after a keyboard
+    // cycle. A real keyboard removes a substantial part of the remembered full
+    // height; otherwise restore that full height instead of trusting the stale
+    // values.
+    const keyboardVisible =
+      isIPadChrome && visualHeight < restingViewportHeight - restingViewportHeight / 4;
+    const useRestingViewport = isIPadChrome && !keyboardVisible;
+    const height = Math.ceil(useRestingViewport ? restingViewportHeight : visualHeight);
+    const width = Math.ceil(useRestingViewport || !viewport ? layoutWidth : viewport.width);
     const top = Math.round(
-      viewport && !useLayoutViewport
+      viewport && !useRestingViewport
         ? Math.max(viewport.offsetTop, viewport.pageTop - window.scrollY, 0)
         : 0,
     );
     const left = Math.round(
-      viewport && !useLayoutViewport
+      viewport && !useRestingViewport
         ? Math.max(viewport.offsetLeft, viewport.pageLeft - window.scrollX, 0)
         : 0,
     );

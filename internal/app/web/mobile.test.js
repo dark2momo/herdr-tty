@@ -81,7 +81,16 @@ function loadMobile({
 
   return {
     styles,
-    updateViewport({ height, width = layoutWidth, top = 0, left = 0 }) {
+    updateViewport({
+      height,
+      width = layoutWidth,
+      innerHeight = height,
+      innerWidth = width,
+      top = 0,
+      left = 0,
+    }) {
+      window.innerHeight = innerHeight;
+      window.innerWidth = innerWidth;
       visualViewport.height = height;
       visualViewport.width = width;
       visualViewport.offsetTop = top;
@@ -102,13 +111,40 @@ function viewportStyles(runtime) {
   };
 }
 
-test("iPad Chrome keeps the layout viewport after input focus", () => {
+test("iPad Chrome restores its remembered height after repeated keyboard cycles", () => {
   const runtime = loadMobile({
     userAgent: "Mozilla/5.0 (iPad) CriOS/140.0 Mobile/15E148 Safari/604.1",
     maxTouchPoints: 5,
   });
 
-  runtime.updateViewport({ height: 930, top: 94 });
+  runtime.updateViewport({ height: 650, top: 84 });
+
+  assert.deepEqual(viewportStyles(runtime), {
+    height: "650px",
+    width: "1366px",
+    top: "84px",
+    left: "0px",
+  });
+
+  runtime.updateViewport({ height: 930 });
+
+  assert.deepEqual(viewportStyles(runtime), {
+    height: "1024px",
+    width: "1366px",
+    top: "0px",
+    left: "0px",
+  });
+
+  runtime.updateViewport({ height: 650, top: 84 });
+
+  assert.deepEqual(viewportStyles(runtime), {
+    height: "650px",
+    width: "1366px",
+    top: "84px",
+    left: "0px",
+  });
+
+  runtime.updateViewport({ height: 930 });
 
   assert.deepEqual(viewportStyles(runtime), {
     height: "1024px",
@@ -147,6 +183,22 @@ test("iPad Chrome desktop mode also keeps the keyboard above the terminal", () =
     height: "650px",
     width: "1366px",
     top: "84px",
+    left: "0px",
+  });
+});
+
+test("iPad Chrome resets the remembered height after rotation", () => {
+  const runtime = loadMobile({
+    userAgent: "Mozilla/5.0 (iPad) CriOS/140.0 Mobile/15E148 Safari/604.1",
+    maxTouchPoints: 5,
+  });
+
+  runtime.updateViewport({ height: 1366, width: 1024 });
+
+  assert.deepEqual(viewportStyles(runtime), {
+    height: "1366px",
+    width: "1024px",
+    top: "0px",
     left: "0px",
   });
 });
