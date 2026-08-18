@@ -1,21 +1,36 @@
 :root {
   --herdr-web-viewport-height: 100dvh;
+  --herdr-web-viewport-width: 100vw;
+  --herdr-web-viewport-top: 0px;
+  --herdr-web-viewport-left: 0px;
 }
 
 @media (pointer: coarse), (max-width: 900px) {
-  html,
+  html {
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
   body {
-    height: var(--herdr-web-viewport-height);
+    height: 100%;
+    width: 100%;
     min-height: 0;
     overscroll-behavior: none;
   }
 
   #terminal-container {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
     height: var(--herdr-web-viewport-height) !important;
+    width: var(--herdr-web-viewport-width) !important;
+    transform: translate3d(var(--herdr-web-viewport-left), var(--herdr-web-viewport-top), 0);
+    transform-origin: top left;
   }
 
   .xterm {
     touch-action: none;
   }
 }
-
