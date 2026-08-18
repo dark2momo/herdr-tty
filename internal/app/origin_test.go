@@ -20,6 +20,7 @@ func TestSameOrigin(t *testing.T) {
 		{name: "forwarded host chain", origin: "https://terminal.example", forwardedHost: "terminal.example, proxy.internal", want: true},
 		{name: "browser same origin through proxy", origin: "https://terminal.example", fetchSite: "same-origin", want: true},
 		{name: "cross site", origin: "https://evil.test", fetchSite: "cross-site", want: false},
+		{name: "opaque origin", origin: "null", want: false},
 		{name: "untrusted forwarded host", origin: "https://evil.test", forwardedHost: "terminal.example", want: false},
 		{name: "malformed origin", origin: "http://%", fetchSite: "same-origin", want: false},
 	}

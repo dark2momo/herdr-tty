@@ -36,6 +36,9 @@ func TestGatewayLoginFlow(t *testing.T) {
 	if protectedResponse.Code != http.StatusSeeOther || protectedResponse.Header().Get("Location") != loginPath {
 		t.Fatalf("unexpected protected response: %d %#v", protectedResponse.Code, protectedResponse.Header())
 	}
+	if got := protectedResponse.Header().Get("Referrer-Policy"); got != "same-origin" {
+		t.Fatalf("Referrer-Policy = %q", got)
+	}
 
 	form := url.Values{"username": {"alice"}, "password": {"secret"}}
 	loginRequest := httptest.NewRequest(http.MethodPost, "http://terminal.test"+loginPath, strings.NewReader(form.Encode()))
