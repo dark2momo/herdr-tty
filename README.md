@@ -56,8 +56,11 @@ Options:
 ## Mobile behavior
 
 - One-finger drag scrolls the active Herdr view with light inertia.
+- Long-press and drag selects terminal text; a temporary Copy button appears
+  after the gesture.
+- A two-finger tap sends a right mouse click to Herdr.
 - The terminal follows `visualViewport` when a mobile keyboard changes the
-  visible height.
+  visible area, including iOS viewport offsets.
 - The browser context menu is suppressed inside the web app.
 - No `keydown`, `keyup`, or `keypress` handler is installed, so Herdr keyboard
   shortcuts continue through ttyd unchanged.

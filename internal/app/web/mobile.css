@@ -33,4 +33,24 @@
   .xterm {
     touch-action: none;
   }
+
+  .xterm .herdr-web-copy-button {
+    position: absolute;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    z-index: 20;
+    min-width: 64px;
+    min-height: 40px;
+    border: 1px solid #ffffff33;
+    border-radius: 8px;
+    padding: 8px 14px;
+    background: #20242dcc;
+    color: #fff;
+    font: 600 14px/1 system-ui, sans-serif;
+    touch-action: manipulation;
+  }
+
+  .xterm .herdr-web-copy-button[hidden] {
+    display: none;
+  }
 }

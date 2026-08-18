@@ -66,7 +66,17 @@ func TestMobileScriptDoesNotInterceptKeyboard(t *testing.T) {
 			t.Fatalf("mobile script unexpectedly contains %q", event)
 		}
 	}
-	for _, feature := range []string{"touchmove", "WheelEvent", "visualViewport", "offsetTop", "contextmenu"} {
+	for _, feature := range []string{
+		"touchmove",
+		"WheelEvent",
+		"visualViewport",
+		"offsetTop",
+		"contextmenu",
+		"twoFingerTapDelay",
+		`sendMouse("mousedown", twoFingerX, twoFingerY, 2, 2)`,
+		`sendMouse("mousedown", startX, startY, 0, 1, true)`,
+		`document.execCommand("copy")`,
+	} {
 		if !strings.Contains(script, feature) {
 			t.Fatalf("mobile script is missing %q", feature)
 		}
