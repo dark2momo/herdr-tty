@@ -118,7 +118,7 @@ test("iPad Chrome keeps the layout viewport after input focus", () => {
   });
 });
 
-test("iPad Chrome keeps the layout viewport while its keyboard is open", () => {
+test("iPad Chrome keeps the keyboard above the terminal", () => {
   const runtime = loadMobile({
     userAgent: "Mozilla/5.0 (iPad) CriOS/140.0 Mobile/15E148 Safari/604.1",
     maxTouchPoints: 5,
@@ -127,14 +127,14 @@ test("iPad Chrome keeps the layout viewport while its keyboard is open", () => {
   runtime.updateViewport({ height: 650, top: 84 });
 
   assert.deepEqual(viewportStyles(runtime), {
-    height: "1024px",
+    height: "650px",
     width: "1366px",
-    top: "0px",
+    top: "84px",
     left: "0px",
   });
 });
 
-test("iPad Chrome desktop mode also keeps the layout viewport", () => {
+test("iPad Chrome desktop mode also keeps the keyboard above the terminal", () => {
   const runtime = loadMobile({
     userAgent: "Mozilla/5.0 (Macintosh) CriOS/140.0 Safari/604.1",
     platform: "MacIntel",
@@ -144,9 +144,9 @@ test("iPad Chrome desktop mode also keeps the layout viewport", () => {
   runtime.updateViewport({ height: 650, top: 84 });
 
   assert.deepEqual(viewportStyles(runtime), {
-    height: "1024px",
+    height: "650px",
     width: "1366px",
-    top: "0px",
+    top: "84px",
     left: "0px",
   });
 });

@@ -19,11 +19,16 @@
   }
 
   function updateViewport(forceFit = false) {
-    // Chrome's floating iPad keyboard overlays the page, but WKWebView reports
-    // a smaller visual viewport that leaves an uncovered band. Keep the page
-    // on the layout viewport there; other browsers retain keyboard avoidance.
-    const useLayoutViewport = isIPadChrome || !viewport;
-    const height = Math.ceil(useLayoutViewport ? window.innerHeight : viewport.height);
+    const layoutHeight = window.innerHeight;
+    const visualHeight = viewport ? viewport.height : layoutHeight;
+    // Ignore iPad Chrome's small stale focus inset after the keyboard closes,
+    // while retaining the smaller visual viewport when a keyboard is visible.
+    const useLayoutViewport =
+      !viewport ||
+      (isIPadChrome &&
+        layoutHeight > visualHeight &&
+        layoutHeight - visualHeight < layoutHeight / 4);
+    const height = Math.ceil(useLayoutViewport ? layoutHeight : visualHeight);
     const width = Math.ceil(useLayoutViewport || !viewport ? window.innerWidth : viewport.width);
     const top = Math.round(
       viewport && !useLayoutViewport

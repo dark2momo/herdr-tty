@@ -62,8 +62,8 @@ Options:
 - A two-finger tap sends a right mouse click to Herdr.
 - The terminal follows `visualViewport` when a mobile keyboard changes the
   visible area, including iOS viewport offsets.
-- On iPad Chrome, the terminal stays on the layout viewport while the floating
-  keyboard overlays it, avoiding WKWebView focus and keyboard gaps.
+- On iPad Chrome, a small stale focus inset is ignored after the keyboard
+  closes, while an open keyboard still resizes the terminal above it.
 - The browser context menu is suppressed inside the web app.
 - No `keydown`, `keyup`, or `keypress` handler is installed, so Herdr keyboard
   shortcuts continue through ttyd unchanged.
