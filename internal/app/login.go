@@ -163,7 +163,22 @@ func sameOrigin(request *http.Request) bool {
 		return true
 	}
 	parsed, err := url.Parse(origin)
-	return err == nil && strings.EqualFold(parsed.Host, request.Host)
+	if err != nil {
+		return false
+	}
+	if strings.EqualFold(parsed.Host, request.Host) {
+		return true
+	}
+
+	forwardedHost := request.Header.Get("X-Forwarded-Host")
+	if first, _, found := strings.Cut(forwardedHost, ","); found {
+		forwardedHost = first
+	}
+	if forwardedHost = strings.TrimSpace(forwardedHost); forwardedHost != "" && strings.EqualFold(parsed.Host, forwardedHost) {
+		return true
+	}
+
+	return strings.EqualFold(strings.TrimSpace(request.Header.Get("Sec-Fetch-Site")), "same-origin")
 }
 
 func isWebSocket(request *http.Request) bool {
