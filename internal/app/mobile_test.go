@@ -72,6 +72,8 @@ func TestMobileScriptDoesNotInterceptKeyboard(t *testing.T) {
 		"visualViewport",
 		"offsetTop",
 		"pageTop",
+		"dispatchingResize",
+		"focusout",
 		"contextmenu",
 		"twoFingerTapDelay",
 		`sendMouse("mousedown", twoFingerX, twoFingerY, 2, 2)`,

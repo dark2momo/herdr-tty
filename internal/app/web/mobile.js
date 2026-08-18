@@ -5,9 +5,16 @@
   const viewport = window.visualViewport;
   let lastViewportMetrics = "";
   let viewportFrame = 0;
-  let viewportTimer = 0;
+  let viewportTimers = [];
+  let dispatchingResize = false;
 
-  function updateViewport() {
+  function notifyTerminalResize() {
+    dispatchingResize = true;
+    window.dispatchEvent(new Event("resize"));
+    dispatchingResize = false;
+  }
+
+  function updateViewport(forceFit = false) {
     const height = Math.ceil(viewport ? viewport.height : window.innerHeight);
     const width = Math.ceil(viewport ? viewport.width : window.innerWidth);
     const top = Math.round(
@@ -17,32 +24,45 @@
       viewport ? Math.max(viewport.offsetLeft, viewport.pageLeft - window.scrollX, 0) : 0,
     );
     const metrics = `${width}:${height}:${left}:${top}`;
-    if (metrics === lastViewportMetrics) return;
-    lastViewportMetrics = metrics;
-    root.style.setProperty("--herdr-web-viewport-height", `${height}px`);
-    root.style.setProperty("--herdr-web-viewport-width", `${width}px`);
-    root.style.setProperty("--herdr-web-viewport-top", `${top}px`);
-    root.style.setProperty("--herdr-web-viewport-left", `${left}px`);
-    window.dispatchEvent(new Event("resize"));
+    if (metrics !== lastViewportMetrics) {
+      lastViewportMetrics = metrics;
+      root.style.setProperty("--herdr-web-viewport-height", `${height}px`);
+      root.style.setProperty("--herdr-web-viewport-width", `${width}px`);
+      root.style.setProperty("--herdr-web-viewport-top", `${top}px`);
+      root.style.setProperty("--herdr-web-viewport-left", `${left}px`);
+      forceFit = true;
+    }
+    if (forceFit) notifyTerminalResize();
   }
 
   function scheduleViewportUpdate() {
     if (viewportFrame) cancelAnimationFrame(viewportFrame);
     viewportFrame = requestAnimationFrame(() => {
       viewportFrame = 0;
-      updateViewport();
+      updateViewport(true);
     });
-    clearTimeout(viewportTimer);
-    viewportTimer = window.setTimeout(updateViewport, 80);
+    for (const timer of viewportTimers) clearTimeout(timer);
+    viewportTimers = [80, 250, 500].map((delay) =>
+      window.setTimeout(() => updateViewport(true), delay),
+    );
   }
 
   if (viewport) {
     viewport.addEventListener("resize", scheduleViewportUpdate, { passive: true });
     viewport.addEventListener("scroll", scheduleViewportUpdate, { passive: true });
+    viewport.addEventListener("scrollend", scheduleViewportUpdate, { passive: true });
   }
-  window.addEventListener("resize", scheduleViewportUpdate, { passive: true });
+  window.addEventListener(
+    "resize",
+    () => {
+      if (!dispatchingResize) scheduleViewportUpdate();
+    },
+    { passive: true },
+  );
   window.addEventListener("orientationchange", scheduleViewportUpdate, { passive: true });
-  updateViewport();
+  document.addEventListener("focusin", scheduleViewportUpdate, { passive: true });
+  document.addEventListener("focusout", scheduleViewportUpdate, { passive: true });
+  updateViewport(true);
 
   document.addEventListener("contextmenu", (event) => event.preventDefault());
 
@@ -58,6 +78,7 @@
   function attachTouchControls(terminal) {
     if (terminal.dataset.herdrWebTouch === "ready") return;
     terminal.dataset.herdrWebTouch = "ready";
+    scheduleViewportUpdate();
 
     const copyButton = document.createElement("button");
     copyButton.type = "button";
