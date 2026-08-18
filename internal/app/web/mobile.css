@@ -3,9 +3,18 @@
   --herdr-web-viewport-width: 100vw;
   --herdr-web-viewport-top: 0px;
   --herdr-web-viewport-left: 0px;
+  color-scheme: dark;
+  background: #000;
 }
 
 @media (pointer: coarse), (max-width: 900px) {
+  html,
+  body,
+  #terminal-container,
+  #terminal-container .terminal {
+    background-color: #000 !important;
+  }
+
   html {
     height: 100%;
     width: 100%;

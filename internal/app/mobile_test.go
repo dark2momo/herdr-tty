@@ -81,7 +81,7 @@ func TestMobileScriptDoesNotInterceptKeyboard(t *testing.T) {
 			t.Fatalf("mobile script is missing %q", feature)
 		}
 	}
-	for _, feature := range []string{"--herdr-web-viewport-top", "translate3d"} {
+	for _, feature := range []string{"--herdr-web-viewport-top", "translate3d", "background-color: #000"} {
 		if !strings.Contains(string(mobileCSS), feature) {
 			t.Fatalf("mobile CSS is missing %q", feature)
 		}

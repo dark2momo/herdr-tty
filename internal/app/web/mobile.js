@@ -8,8 +8,8 @@
   let viewportTimer = 0;
 
   function updateViewport() {
-    const height = Math.round(viewport ? viewport.height : window.innerHeight);
-    const width = Math.round(viewport ? viewport.width : window.innerWidth);
+    const height = Math.ceil(viewport ? viewport.height : window.innerHeight);
+    const width = Math.ceil(viewport ? viewport.width : window.innerWidth);
     const top = Math.round(viewport ? viewport.offsetTop : 0);
     const left = Math.round(viewport ? viewport.offsetLeft : 0);
     const metrics = `${width}:${height}:${left}:${top}`;
