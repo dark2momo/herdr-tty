@@ -8,7 +8,13 @@ const vm = require("node:vm");
 
 const source = fs.readFileSync(path.join(__dirname, "mobile.js"), "utf8");
 
-function loadMobile({ userAgent, maxTouchPoints, layoutHeight = 1024, layoutWidth = 1366 }) {
+function loadMobile({
+  userAgent,
+  platform = "",
+  maxTouchPoints,
+  layoutHeight = 1024,
+  layoutWidth = 1366,
+}) {
   const styles = new Map();
   const documentListeners = new Map();
   const viewportListeners = new Map();
@@ -57,7 +63,7 @@ function loadMobile({ userAgent, maxTouchPoints, layoutHeight = 1024, layoutWidt
   const context = {
     window,
     document,
-    navigator: { userAgent, maxTouchPoints },
+    navigator: { userAgent, platform, maxTouchPoints },
     Event: class {},
     MutationObserver: class {
       observe() {}
@@ -96,9 +102,9 @@ function viewportStyles(runtime) {
   };
 }
 
-test("iOS Chrome ignores a small focus-only visual viewport inset", () => {
+test("iPad Chrome keeps the layout viewport after input focus", () => {
   const runtime = loadMobile({
-    userAgent: "Mozilla/5.0 CriOS/140.0 Mobile/15E148 Safari/604.1",
+    userAgent: "Mozilla/5.0 (iPad) CriOS/140.0 Mobile/15E148 Safari/604.1",
     maxTouchPoints: 5,
   });
 
@@ -112,18 +118,35 @@ test("iOS Chrome ignores a small focus-only visual viewport inset", () => {
   });
 });
 
-test("iOS Chrome still follows a docked keyboard visual viewport", () => {
+test("iPad Chrome keeps the layout viewport while its keyboard is open", () => {
   const runtime = loadMobile({
-    userAgent: "Mozilla/5.0 CriOS/140.0 Mobile/15E148 Safari/604.1",
+    userAgent: "Mozilla/5.0 (iPad) CriOS/140.0 Mobile/15E148 Safari/604.1",
     maxTouchPoints: 5,
   });
 
   runtime.updateViewport({ height: 650, top: 84 });
 
   assert.deepEqual(viewportStyles(runtime), {
-    height: "650px",
+    height: "1024px",
     width: "1366px",
-    top: "84px",
+    top: "0px",
+    left: "0px",
+  });
+});
+
+test("iPad Chrome desktop mode also keeps the layout viewport", () => {
+  const runtime = loadMobile({
+    userAgent: "Mozilla/5.0 (Macintosh) CriOS/140.0 Safari/604.1",
+    platform: "MacIntel",
+    maxTouchPoints: 5,
+  });
+
+  runtime.updateViewport({ height: 650, top: 84 });
+
+  assert.deepEqual(viewportStyles(runtime), {
+    height: "1024px",
+    width: "1366px",
+    top: "0px",
     left: "0px",
   });
 });
@@ -138,6 +161,11 @@ for (const browser of [
     name: "desktop Chrome",
     userAgent: "Mozilla/5.0 Chrome/140.0 Safari/537.36",
     maxTouchPoints: 0,
+  },
+  {
+    name: "iPhone Chrome",
+    userAgent: "Mozilla/5.0 (iPhone) CriOS/140.0 Mobile/15E148 Safari/604.1",
+    maxTouchPoints: 5,
   },
 ]) {
   test(`${browser.name} keeps the visual viewport behavior`, () => {
