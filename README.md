@@ -22,6 +22,7 @@ arguments, checks WebSocket origins, and enforces a configurable client limit.
 - Herdr
 - ttyd 1.7+
 - Go 1.23+ (when building from source)
+- Node.js 20+ (only for JavaScript checks; not needed at runtime)
 
 ## Run
 

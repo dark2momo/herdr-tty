@@ -17,4 +17,3 @@ jobs:
           go-version-file: go.mod
           cache: false
       - run: make check
-      - run: node --check internal/app/web/mobile.js
