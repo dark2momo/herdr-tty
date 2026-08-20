@@ -63,7 +63,7 @@ func TestGatewayLoginFlow(t *testing.T) {
 	}
 }
 
-func TestLoginPageSettlesSafariKeyboardBeforeSubmit(t *testing.T) {
+func TestLoginPageSettlesStandaloneIOSKeyboardBeforeSubmit(t *testing.T) {
 	handler := newGatewayHandler(testAuthenticator(t), http.NotFoundHandler())
 	request := httptest.NewRequest(http.MethodGet, "http://terminal.test"+loginPath, nil)
 	response := httptest.NewRecorder()
@@ -79,7 +79,8 @@ func TestLoginPageSettlesSafariKeyboardBeforeSubmit(t *testing.T) {
 		`window.scrollTo(0, 0)`,
 		`HTMLFormElement.prototype.submit.call(form)`,
 		`window.setTimeout`,
-		`CriOS`,
+		`navigator.standalone === true`,
+		`(display-mode: standalone)`,
 	} {
 		if !strings.Contains(body, expected) {
 			t.Fatalf("login page is missing %q", expected)
