@@ -426,8 +426,8 @@ test("toolbar Enter pastes input text and sends return when empty", async () => 
   assert.equal(runtime.rootHasClass("herdr-web-toolbar-visible"), true);
   runtime.focusPasteInput();
   assert.equal(runtime.toolbar.hidden, false);
-  assert.equal(runtime.toolbarButton("escape").textContent, "⎋");
-  assert.equal(runtime.toolbarButton("enter").textContent, "↵");
+  assert.match(runtime.toolbarButton("escape").innerHTML, /<svg/);
+  assert.match(runtime.toolbarButton("enter").innerHTML, /<svg/);
   assert.equal(runtime.pasteInput.style.height, "72px");
   assert.equal(runtime.rootStyle("--herdr-web-toolbar-height"), "80px");
   await runtime.click(runtime.toolbarButton("escape"));
