@@ -63,6 +63,42 @@ func TestGatewayLoginFlow(t *testing.T) {
 	}
 }
 
+func TestGatewayLocalModeSkipsLoginAndStillChecksWebSocketOrigin(t *testing.T) {
+	upstreamCalls := 0
+	handler := newGatewayHandler(nil, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		upstreamCalls++
+		if isWebSocket(request) {
+			writer.WriteHeader(http.StatusSwitchingProtocols)
+			return
+		}
+		writer.WriteHeader(http.StatusOK)
+	}))
+
+	request := httptest.NewRequest(http.MethodGet, "http://terminal.test/", nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || upstreamCalls != 1 {
+		t.Fatalf("local root status=%d upstreamCalls=%d", response.Code, upstreamCalls)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "http://terminal.test"+loginPath, nil)
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/" {
+		t.Fatalf("local login status=%d location=%q", response.Code, response.Header().Get("Location"))
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "http://terminal.test/ws", nil)
+	request.Header.Set("Connection", "Upgrade")
+	request.Header.Set("Upgrade", "websocket")
+	request.Header.Set("Origin", "http://evil.test")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || upstreamCalls != 1 {
+		t.Fatalf("cross-origin status=%d upstreamCalls=%d", response.Code, upstreamCalls)
+	}
+}
+
 func TestGatewayRejectsInvalidLogin(t *testing.T) {
 	handler := newGatewayHandler(testAuthenticator(t), http.NotFoundHandler())
 	form := url.Values{"username": {"alice"}, "password": {"wrong"}}

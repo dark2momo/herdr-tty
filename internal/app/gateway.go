@@ -50,9 +50,12 @@ func RunGateway(ctx context.Context, config Config, stdin io.Reader, stdout, std
 		return err
 	}
 
-	auth, err := newAuthenticator(config)
-	if err != nil {
-		return err
+	var auth *authenticator
+	if config.AuthMode == "form" {
+		auth, err = newAuthenticator(config)
+		if err != nil {
+			return err
+		}
 	}
 	target := &url.URL{Scheme: "http", Host: backendAddress}
 	proxy := httputil.NewSingleHostReverseProxy(target)
@@ -74,7 +77,13 @@ func RunGateway(ctx context.Context, config Config, stdin io.Reader, stdout, std
 	}
 	serverExit := make(chan error, 1)
 	go func() { serverExit <- server.Serve(listener) }()
-	fmt.Fprintf(stdout, "Herdr Web listening on http://%s\n", config.Listen)
+	browserURL := config.browserURL()
+	fmt.Fprintf(stdout, "Herdr Web listening on %s\n", browserURL)
+	if config.OpenBrowser {
+		if err := openBrowserURL(browserURL); err != nil {
+			fmt.Fprintf(stderr, "open browser: %v\n", err)
+		}
+	}
 
 	select {
 	case <-ctx.Done():
@@ -84,12 +93,15 @@ func RunGateway(ctx context.Context, config Config, stdin io.Reader, stdout, std
 		return nil
 	case err := <-childExit:
 		_ = server.Close()
+		if ctx.Err() != nil {
+			return nil
+		}
 		if err == nil {
 			return errors.New("ttyd exited unexpectedly")
 		}
 		return fmt.Errorf("ttyd exited: %w", err)
 	case err := <-serverExit:
-		if errors.Is(err, http.ErrServerClosed) {
+		if ctx.Err() != nil || errors.Is(err, http.ErrServerClosed) {
 			return nil
 		}
 		return fmt.Errorf("serve gateway: %w", err)
@@ -102,57 +114,7 @@ func newGatewayHandler(auth *authenticator, upstream http.Handler) http.Handler 
 		writer.Header().Set("X-Frame-Options", "DENY")
 		writer.Header().Set("Referrer-Policy", "same-origin")
 
-		switch request.URL.Path {
-		case loginPath:
-			if request.Method == http.MethodGet {
-				if auth.authenticated(request) {
-					http.Redirect(writer, request, "/", http.StatusSeeOther)
-					return
-				}
-				serveLogin(writer, http.StatusOK, "")
-				return
-			}
-			if request.Method != http.MethodPost {
-				writer.WriteHeader(http.StatusMethodNotAllowed)
-				return
-			}
-			if !sameOrigin(request) {
-				http.Error(writer, "cross-origin request denied", http.StatusForbidden)
-				return
-			}
-			request.Body = http.MaxBytesReader(writer, request.Body, 16<<10)
-			if err := request.ParseForm(); err != nil {
-				serveLogin(writer, http.StatusBadRequest, "Invalid request")
-				return
-			}
-			if !auth.credentialsMatch(request.FormValue("username"), request.FormValue("password")) {
-				serveLogin(writer, http.StatusUnauthorized, "Invalid username or password")
-				return
-			}
-			auth.setCookie(writer, request)
-			http.Redirect(writer, request, "/", http.StatusSeeOther)
-			return
-
-		case logoutPath:
-			if request.Method != http.MethodPost {
-				writer.WriteHeader(http.StatusMethodNotAllowed)
-				return
-			}
-			if !sameOrigin(request) {
-				http.Error(writer, "cross-origin request denied", http.StatusForbidden)
-				return
-			}
-			clearCookie(writer, request)
-			http.Redirect(writer, request, loginPath, http.StatusSeeOther)
-			return
-		}
-
-		if !auth.authenticated(request) {
-			if isWebSocket(request) {
-				http.Error(writer, "authentication required", http.StatusUnauthorized)
-				return
-			}
-			http.Redirect(writer, request, loginPath, http.StatusSeeOther)
+		if handleAuthentication(writer, request, auth) {
 			return
 		}
 		if isWebSocket(request) && (!sameOrigin(request) || request.Header.Get("Origin") == "") {
@@ -164,6 +126,71 @@ func newGatewayHandler(auth *authenticator, upstream http.Handler) http.Handler 
 		}
 		upstream.ServeHTTP(writer, request)
 	})
+}
+
+func handleAuthentication(writer http.ResponseWriter, request *http.Request, auth *authenticator) bool {
+	if auth == nil {
+		if request.URL.Path == loginPath || request.URL.Path == logoutPath {
+			http.Redirect(writer, request, "/", http.StatusSeeOther)
+			return true
+		}
+		return false
+	}
+
+	switch request.URL.Path {
+	case loginPath:
+		if request.Method == http.MethodGet {
+			if auth.authenticated(request) {
+				http.Redirect(writer, request, "/", http.StatusSeeOther)
+				return true
+			}
+			serveLogin(writer, http.StatusOK, "")
+			return true
+		}
+		if request.Method != http.MethodPost {
+			writer.WriteHeader(http.StatusMethodNotAllowed)
+			return true
+		}
+		if !sameOrigin(request) {
+			http.Error(writer, "cross-origin request denied", http.StatusForbidden)
+			return true
+		}
+		request.Body = http.MaxBytesReader(writer, request.Body, 16<<10)
+		if err := request.ParseForm(); err != nil {
+			serveLogin(writer, http.StatusBadRequest, "Invalid request")
+			return true
+		}
+		if !auth.credentialsMatch(request.FormValue("username"), request.FormValue("password")) {
+			serveLogin(writer, http.StatusUnauthorized, "Invalid username or password")
+			return true
+		}
+		auth.setCookie(writer, request)
+		http.Redirect(writer, request, "/", http.StatusSeeOther)
+		return true
+
+	case logoutPath:
+		if request.Method != http.MethodPost {
+			writer.WriteHeader(http.StatusMethodNotAllowed)
+			return true
+		}
+		if !sameOrigin(request) {
+			http.Error(writer, "cross-origin request denied", http.StatusForbidden)
+			return true
+		}
+		clearCookie(writer, request)
+		http.Redirect(writer, request, loginPath, http.StatusSeeOther)
+		return true
+	}
+
+	if auth.authenticated(request) {
+		return false
+	}
+	if isWebSocket(request) {
+		http.Error(writer, "authentication required", http.StatusUnauthorized)
+	} else {
+		http.Redirect(writer, request, loginPath, http.StatusSeeOther)
+	}
+	return true
 }
 
 func availablePort() (int, error) {

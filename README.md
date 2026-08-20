@@ -24,34 +24,81 @@ arguments, checks WebSocket origins, and enforces a configurable client limit.
 - Go 1.23+ (when building from source)
 - Node.js 20+ (only for JavaScript checks; not needed at runtime)
 
-## Run
+## Quick start
+
+With `herdr` and `ttyd` on `PATH`, run:
 
 ```bash
-go build -o herdr-web ./cmd/herdr-web
+herdr-web
+```
 
+Herdr Web listens only on `127.0.0.1:7681`, skips login for that loopback-only
+session, and opens the terminal in the local browser. It runs in the foreground;
+press Ctrl+C to stop it. Use `--no-open` when launching from a service or a
+headless shell.
+
+To build from source first:
+
+```bash
+GOWORK=off go build -o herdr-web ./cmd/herdr-web
+
+./herdr-web
+```
+
+Extra arguments after `--` are passed to Herdr:
+
+```bash
+herdr-web -- --session work
+```
+
+## Configuration
+
+Pass an explicit JSON configuration file for repeatable launches:
+
+```bash
+herdr-web --config ~/.config/herdr-web/config.json
+```
+
+```json
+{
+  "listen": "127.0.0.1:7681",
+  "cwd": "/home/me/projects",
+  "max_clients": 3,
+  "auth": "local",
+  "open_browser": true,
+  "session_ttl": "168h",
+  "herdr_args": ["--session", "work"]
+}
+```
+
+Command-line options override the file. Login credentials are intentionally not
+accepted in JSON; continue to provide them through the environment:
+
+```bash
 export HERDR_WEB_USERNAME='your-name'
 read -rsp 'Password: ' HERDR_WEB_PASSWORD
 export HERDR_WEB_PASSWORD
 
-./herdr-web --listen 127.0.0.1:7681
+herdr-web --listen 0.0.0.0:7681 --no-open
 ```
 
-Open `http://127.0.0.1:7681`. Extra arguments after `--` are passed to Herdr:
-
-```bash
-./herdr-web --listen 127.0.0.1:7681 -- --session work
-```
+When both credential variables exist, `--auth auto` selects form login. Without
+credentials it selects `local`, which is rejected unless `--listen` is a
+loopback address.
 
 Options:
 
 ```text
+--config        JSON configuration file
 --listen        address to listen on (default 127.0.0.1:7681)
 --ttyd          ttyd executable (default ttyd)
 --herdr         Herdr executable (default herdr)
 --cwd           working directory exposed to Herdr (default current directory)
 --max-clients   maximum concurrent ttyd clients (default 3)
---auth          authentication mode: form or native (default form)
+--auth          authentication mode: auto, local, form, or native (default auto)
 --session-ttl   login lifetime (default 168h)
+--open          open the browser
+--no-open       do not open the browser
 ```
 
 ## Mobile behavior
@@ -74,11 +121,12 @@ Options:
 
 ## Security
 
-The default bind address is loopback. Exposing a writable web terminal grants
-shell access with your user privileges; put it behind a network boundary you
-trust.
+The default bind address is loopback, and password-free `local` mode is accepted
+only on a loopback listener. Exposing a writable web terminal grants shell
+access with your user privileges; use form login and put it behind a network
+boundary you trust.
 
-The default form login uses an HTTP-only, same-site Cookie signed by an
+Form login uses an HTTP-only, same-site Cookie signed by an
 in-memory random key. Restarting Herdr Web invalidates existing sessions.
 Credentials stay in Herdr Web and are not passed to ttyd: all `HERDR_WEB_*`
 variables are removed from the environment inherited by ttyd and Herdr.
