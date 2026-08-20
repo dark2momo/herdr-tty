@@ -327,20 +327,38 @@
     copyButton.setAttribute("aria-label", "Copy terminal selection");
     terminal.appendChild(copyButton);
 
+    let copySelectionText = "";
+    function captureCopySelection() {
+      const text = selectedTerminalText();
+      if (text) copySelectionText = text;
+      return text;
+    }
+
     for (const eventName of ["touchstart", "touchmove", "touchend", "touchcancel", "pointerdown", "mousedown"]) {
-      copyButton.addEventListener(eventName, (event) => event.stopPropagation());
+      copyButton.addEventListener(eventName, (event) => {
+        if (eventName === "touchstart" || eventName === "pointerdown" || eventName === "mousedown") {
+          captureCopySelection();
+        }
+        event.stopPropagation();
+      });
     }
     copyButton.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      const text = selectedTerminalText();
+      const text = copySelectionText || captureCopySelection();
+      if (!text) {
+        copyButton.textContent = "No selection";
+        return;
+      }
       copyButton.disabled = true;
       void copyText(text).then((copied) => {
         copyButton.disabled = false;
-        copyButton.textContent = copied ? "Copy" : "Copy failed";
+        copyButton.textContent = copied ? "Copy" : "Copy unavailable";
         copyButton.hidden = copied;
+        if (copied) copySelectionText = "";
       });
     });
+    window.term?.onSelectionChange?.(captureCopySelection);
 
     createInputToolbar(terminal);
 
@@ -401,6 +419,7 @@
     function beginSelection() {
       holdTimer = 0;
       if (activeTouches !== 1 || dragging || twoFinger) return;
+      copySelectionText = "";
       selecting = true;
       selectionMoved = false;
       sendMouse("mousedown", startX, startY, 0, 1, true);
@@ -409,6 +428,7 @@
     function finishSelection(clientX, clientY) {
       sendMouse("mouseup", clientX, clientY, 0, 0, true);
       selecting = false;
+      captureCopySelection();
       if (selectionMoved) copyButton.hidden = false;
     }
 
@@ -516,6 +536,7 @@
           lastX = touch.clientX;
           lastY = touch.clientY;
           sendMouse("mousemove", lastX, lastY, 0, 1, true);
+          captureCopySelection();
           return;
         }
         const now = performance.now();

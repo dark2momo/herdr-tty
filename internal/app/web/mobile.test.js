@@ -152,6 +152,7 @@ function loadTouchMobile({
   const terminalInputs = [];
   const terminalPastes = [];
   const prompts = [];
+  let currentSelection = selection;
   let copiedText = "";
   let selectedControl = null;
   let document;
@@ -298,7 +299,7 @@ function loadTouchMobile({
     paste(data) {
       terminalPastes.push(data);
     },
-    getSelection: () => selection,
+    getSelection: () => currentSelection,
     focus() {
       helper.focus();
     },
@@ -348,6 +349,13 @@ function loadTouchMobile({
       await Promise.resolve();
       await Promise.resolve();
     },
+    trigger(element, name) {
+      const event = { preventDefault() {}, stopPropagation() {} };
+      for (const listener of element.listeners.get(name) || []) listener(event);
+    },
+    setSelection(value) {
+      currentSelection = value;
+    },
     toolbarButton(label) {
       return toolbar.children.find((button) => button.textContent === label);
     },
@@ -365,6 +373,17 @@ test("copy button writes the xterm selection on LAN HTTP", async () => {
   assert.equal(runtime.copiedText, "first line\nsecond line");
   assert.equal(runtime.copyButton.hidden, true);
   assert.equal(runtime.copyButton.disabled, false);
+});
+
+test("copy button preserves selection before focus clears it", async () => {
+  const runtime = loadTouchMobile({ selection: "captured text" });
+
+  runtime.trigger(runtime.copyButton, "pointerdown");
+  runtime.setSelection("");
+  await runtime.click(runtime.copyButton);
+
+  assert.equal(runtime.copiedText, "captured text");
+  assert.equal(runtime.copyButton.hidden, true);
 });
 
 test("copy button offers a native manual field when WebKit rejects programmatic copy", async () => {
