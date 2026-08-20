@@ -59,6 +59,41 @@ func TestParseConfigDefaultsToLocalAndOpensBrowser(t *testing.T) {
 	}
 }
 
+func TestParseConfigAcceptsFirstClassSession(t *testing.T) {
+	config, err := ParseConfig([]string{"--session", "work", "--no-open"}, func(string) string { return "" }, func() (string, error) {
+		return "/workspace", nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Session != "work" || len(config.HerdrArgs) != 0 {
+		t.Fatalf("unexpected session config: %#v", config)
+	}
+	wantSuffix := []string{"herdr", "--session", "work"}
+	got := config.BackendArgs(17682)
+	if !reflect.DeepEqual(got[len(got)-len(wantSuffix):], wantSuffix) {
+		t.Fatalf("BackendArgs() = %#v", got)
+	}
+}
+
+func TestParseConfigRejectsConflictingSessionArguments(t *testing.T) {
+	_, err := ParseConfig([]string{"--session", "work", "--", "--session", "other"}, func(string) string { return "" }, func() (string, error) {
+		return "/workspace", nil
+	})
+	if err == nil || !strings.Contains(err.Error(), "cannot be combined") {
+		t.Fatalf("expected session conflict, got %v", err)
+	}
+}
+
+func TestParseConfigRejectsEmptySession(t *testing.T) {
+	_, err := ParseConfig([]string{"--session="}, func(string) string { return "" }, func() (string, error) {
+		return "/workspace", nil
+	})
+	if err == nil || !strings.Contains(err.Error(), "cannot be empty") {
+		t.Fatalf("expected empty session error, got %v", err)
+	}
+}
+
 func TestParseConfigRejectsLaunchInsideHerdr(t *testing.T) {
 	_, err := ParseConfig(nil, func(key string) string {
 		if key == herdrEnv {
@@ -117,16 +152,17 @@ func TestParseConfigFileAndCLIOverrides(t *testing.T) {
   "cwd": "/configured",
   "max_clients": 2,
   "auth": "local",
+  "session": "configured",
   "session_ttl": "24h",
   "open_browser": true,
-  "herdr_args": ["--session", "configured"]
+  "herdr_args": ["--handoff"]
 }`
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	config, err := ParseConfig(
-		[]string{"--config", path, "--listen", "127.0.0.1:9001", "--no-open", "--", "--session", "cli"},
+		[]string{"--config", path, "--listen", "127.0.0.1:9001", "--session", "cli", "--no-open"},
 		func(string) string { return "" },
 		func() (string, error) { return "/workspace", nil },
 	)
@@ -136,10 +172,10 @@ func TestParseConfigFileAndCLIOverrides(t *testing.T) {
 	if config.Listen != "127.0.0.1:9001" || config.CWD != "/configured" || config.MaxClients != 2 {
 		t.Fatalf("unexpected file config: %#v", config)
 	}
-	if config.AuthMode != "local" || config.SessionTTL != 24*time.Hour || config.OpenBrowser {
+	if config.AuthMode != "local" || config.Session != "cli" || config.SessionTTL != 24*time.Hour || config.OpenBrowser {
 		t.Fatalf("unexpected file auth config: %#v", config)
 	}
-	if !reflect.DeepEqual(config.HerdrArgs, []string{"--session", "cli"}) {
+	if !reflect.DeepEqual(config.HerdrArgs, []string{"--handoff"}) {
 		t.Fatalf("HerdrArgs = %#v", config.HerdrArgs)
 	}
 }
@@ -182,7 +218,8 @@ func TestNativeArgs(t *testing.T) {
 		MaxClients: 3,
 		Username:   "alice",
 		Password:   "secret",
-		HerdrArgs:  []string{"--session", "work"},
+		Session:    "work",
+		HerdrArgs:  []string{"--handoff"},
 	}
 	want := []string{
 		"--debug", "3",
@@ -194,7 +231,7 @@ func TestNativeArgs(t *testing.T) {
 		"--credential", "alice:secret",
 		"--cwd", "/workspace",
 		"--terminal-type", "xterm-256color",
-		"herdr", "--session", "work",
+		"herdr", "--session", "work", "--handoff",
 	}
 	if got := config.NativeArgs(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("NativeArgs() = %#v, want %#v", got, want)
