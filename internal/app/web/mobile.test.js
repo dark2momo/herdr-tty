@@ -404,12 +404,10 @@ test("terminal focus shows input toolbar with key and paste actions", async () =
   assert.equal(runtime.toolbar.hidden, false);
   assert.equal(runtime.rootHasClass("herdr-web-toolbar-visible"), true);
   await runtime.click(runtime.toolbarButton("Esc"));
-  await runtime.click(runtime.toolbarButton("Tab"));
   await runtime.click(runtime.toolbarButton("Paste"));
-  await runtime.click(runtime.toolbarButton("Enter"));
+  await runtime.click(runtime.toolbarButton("换行"));
   assert.deepEqual(runtime.terminalInputs, [
     { data: "\x1b", wasUserInput: true },
-    { data: "\t", wasUserInput: true },
     { data: "\r", wasUserInput: true },
   ]);
   assert.deepEqual(runtime.terminalPastes, ["pasted text"]);
