@@ -343,6 +343,13 @@ function loadTouchMobile({
       helper.focus();
       dispatchDocument("focusin", { target: helper });
     },
+    focusPasteInput() {
+      const input = toolbar.children.find(
+        (child) => child.className === "herdr-web-paste-input",
+      );
+      input.focus();
+      dispatchDocument("focusin", { target: input });
+    },
     async click(element) {
       const event = { preventDefault() {}, stopPropagation() {} };
       for (const listener of element.listeners.get("click") || []) listener(event);
@@ -358,6 +365,9 @@ function loadTouchMobile({
     },
     toolbarButton(label) {
       return toolbar.children.find((button) => button.textContent === label);
+    },
+    get pasteInput() {
+      return toolbar.children.find((child) => child.className === "herdr-web-paste-input");
     },
     rootHasClass(name) {
       return rootClasses.has(name);
@@ -396,21 +406,25 @@ test("copy button offers a native manual field when WebKit rejects programmatic 
   assert.equal(runtime.copyButton.disabled, false);
 });
 
-test("terminal focus shows input toolbar with key and paste actions", async () => {
-  const runtime = loadTouchMobile({ promptValue: "pasted text" });
+test("toolbar Enter pastes input text and sends return when empty", async () => {
+  const runtime = loadTouchMobile();
 
   runtime.focusTerminal();
 
   assert.equal(runtime.toolbar.hidden, false);
   assert.equal(runtime.rootHasClass("herdr-web-toolbar-visible"), true);
+  runtime.focusPasteInput();
+  assert.equal(runtime.toolbar.hidden, false);
   await runtime.click(runtime.toolbarButton("Esc"));
-  await runtime.click(runtime.toolbarButton("Paste"));
+  runtime.pasteInput.value = "first line\nsecond line";
+  await runtime.click(runtime.toolbarButton("Enter"));
+  assert.equal(runtime.pasteInput.value, "");
   await runtime.click(runtime.toolbarButton("Enter"));
   assert.deepEqual(runtime.terminalInputs, [
     { data: "\x1b", wasUserInput: true },
     { data: "\r", wasUserInput: true },
   ]);
-  assert.deepEqual(runtime.terminalPastes, ["pasted text"]);
+  assert.deepEqual(runtime.terminalPastes, ["first line\nsecond line"]);
 });
 
 test("iOS virtual Chinese punctuation is forwarded as non-composition input", () => {

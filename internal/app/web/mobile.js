@@ -230,22 +230,7 @@
     window.term.focus?.();
   }
 
-  async function pasteFromToolbar() {
-    let text = null;
-    if (window.isSecureContext && typeof navigator.clipboard?.readText === "function") {
-      try {
-        text = await navigator.clipboard.readText();
-      } catch {
-        // Fall back to an explicit input prompt below.
-      }
-    }
-    if (text === null && typeof window.prompt === "function") {
-      text = window.prompt("Paste text into Herdr");
-    }
-    if (text === null || text === "") {
-      window.term?.focus?.();
-      return;
-    }
+  function pasteTerminalText(text) {
     if (typeof window.term?.paste === "function") {
       window.term.paste(text);
       window.term.focus?.();
@@ -261,12 +246,7 @@
     toolbar.setAttribute("role", "toolbar");
     toolbar.setAttribute("aria-label", "Terminal input controls");
 
-    const actions = [
-      ["Esc", () => sendTerminalInput("\x1b")],
-      ["Paste", pasteFromToolbar],
-      ["Enter", () => sendTerminalInput("\r")],
-    ];
-    for (const [label, action] of actions) {
+    function appendButton(label, action) {
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = label;
@@ -281,7 +261,30 @@
         void action();
       });
       toolbar.appendChild(button);
+      return button;
     }
+
+    appendButton("Esc", () => sendTerminalInput("\x1b"));
+
+    const pasteInput = document.createElement("textarea");
+    pasteInput.className = "herdr-web-paste-input";
+    pasteInput.rows = 1;
+    pasteInput.placeholder = "Paste or type";
+    pasteInput.setAttribute("aria-label", "Text to paste into terminal");
+    pasteInput.setAttribute("enterkeyhint", "send");
+    toolbar.appendChild(pasteInput);
+
+    function submitPasteInput() {
+      if (pasteInput.value !== "") {
+        const text = pasteInput.value;
+        pasteInput.value = "";
+        pasteTerminalText(text);
+        return;
+      }
+      sendTerminalInput("\r");
+    }
+
+    appendButton("Enter", submitPasteInput);
     document.body.appendChild(toolbar);
 
     function setVisible(visible) {
@@ -292,6 +295,10 @@
     }
 
     document.addEventListener("focusin", (event) => {
+      if (toolbar.contains(event.target)) {
+        setVisible(true);
+        return;
+      }
       if (
         event.target?.classList?.contains("xterm-helper-textarea") &&
         terminal.contains(event.target)
@@ -303,7 +310,9 @@
       window.setTimeout(() => {
         const active = document.activeElement;
         setVisible(
-          !!active?.classList?.contains("xterm-helper-textarea") && terminal.contains(active),
+          toolbar.contains(active) ||
+            (!!active?.classList?.contains("xterm-helper-textarea") &&
+              terminal.contains(active)),
         );
       }, 0);
     });

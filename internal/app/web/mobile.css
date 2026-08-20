@@ -111,7 +111,23 @@
     touch-action: manipulation;
   }
 
-  .herdr-web-input-toolbar button[data-action="paste"] {
-    flex-grow: 1.35;
+  .herdr-web-paste-input {
+    flex: 1.35 1 0;
+    box-sizing: border-box;
+    min-width: 0;
+    height: 38px;
+    padding: 8px 10px;
+    overflow: hidden;
+    resize: none;
+    border: 1px solid #ffffff2b;
+    border-radius: 7px;
+    outline: none;
+    background: #171b24;
+    color: #fff;
+    font: 400 16px/20px system-ui, sans-serif;
+  }
+
+  .herdr-web-paste-input:focus {
+    border-color: #78a9ff;
   }
 }
