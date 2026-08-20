@@ -142,6 +142,15 @@
   .herdr-web-toolbar-actions button {
     width: 42px;
     padding: 0;
-    font: 600 19px/1 system-ui, sans-serif;
+  }
+
+  .herdr-web-toolbar-actions svg {
+    width: 19px;
+    height: 19px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
   }
 }

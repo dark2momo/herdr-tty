@@ -246,10 +246,17 @@
     toolbar.setAttribute("role", "toolbar");
     toolbar.setAttribute("aria-label", "Terminal input controls");
 
-    function appendButton(parent, label, action, name) {
+    const actionIcons = {
+      enter:
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 5v6a5 5 0 0 1-5 5H5"/><path d="m9 12-4 4 4 4"/></svg>',
+      escape:
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>',
+    };
+
+    function appendButton(parent, action, name) {
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = label;
+      button.innerHTML = actionIcons[name];
       button.dataset.action = name;
       button.setAttribute("aria-label", name === "escape" ? "Escape" : "Enter");
       button.setAttribute("title", name === "escape" ? "Escape" : "Enter");
@@ -313,8 +320,8 @@
 
     const actions = document.createElement("div");
     actions.className = "herdr-web-toolbar-actions";
-    appendButton(actions, "⎋", () => sendTerminalInput("\x1b"), "escape");
-    appendButton(actions, "↵", submitPasteInput, "enter");
+    appendButton(actions, () => sendTerminalInput("\x1b"), "escape");
+    appendButton(actions, submitPasteInput, "enter");
     toolbar.appendChild(actions);
     document.body.appendChild(toolbar);
     resizePasteInput();
