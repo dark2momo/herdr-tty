@@ -49,11 +49,13 @@ GOWORK=off go build -o herdr-web ./cmd/herdr-web
 ./herdr-web
 ```
 
-Extra arguments after `--` are passed to Herdr:
+Select a named persistent Herdr session directly:
 
 ```bash
-herdr-web -- --session work
+herdr-web --session work
 ```
+
+Other arguments after `--` are still passed to Herdr.
 
 ## Configuration
 
@@ -69,9 +71,10 @@ herdr-web --config ~/.config/herdr-web/config.json
   "cwd": "/home/me/projects",
   "max_clients": 3,
   "auth": "local",
+  "session": "work",
   "open_browser": true,
   "session_ttl": "168h",
-  "herdr_args": ["--session", "work"]
+  "herdr_args": []
 }
 ```
 
@@ -100,6 +103,7 @@ Options:
 --cwd           working directory exposed to Herdr (default current directory)
 --max-clients   maximum concurrent ttyd clients (default 3)
 --auth          authentication mode: auto, local, form, or native (default auto)
+--session       named persistent Herdr session
 --session-ttl   login lifetime (default 168h)
 --open          open the browser
 --no-open       do not open the browser
