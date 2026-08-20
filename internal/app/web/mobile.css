@@ -134,13 +134,17 @@
 
   .herdr-web-toolbar-actions {
     display: flex;
-    flex: 0 0 42px;
+    flex: 0 0 52px;
     flex-direction: column;
+    align-self: flex-end;
     gap: 4px;
+    height: 72px;
   }
 
   .herdr-web-toolbar-actions button {
-    width: 42px;
+    flex: 0 0 34px;
+    box-sizing: border-box;
+    width: 52px;
     padding: 0;
   }
 
