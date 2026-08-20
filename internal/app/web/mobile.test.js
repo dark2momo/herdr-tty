@@ -149,8 +149,10 @@ function loadTouchMobile({
 } = {}) {
   const documentListeners = new Map();
   const rootClasses = new Set();
+  const rootStyles = new Map();
   const terminalInputs = [];
   const terminalPastes = [];
+  const terminalEvents = [];
   const prompts = [];
   let currentSelection = selection;
   let copiedText = "";
@@ -209,7 +211,7 @@ function loadTouchMobile({
   }
 
   const rootElement = createElement("html");
-  rootElement.style.setProperty = () => {};
+  rootElement.style.setProperty = (name, value) => rootStyles.set(name, value);
   rootElement.classList = {
     contains: (name) => rootClasses.has(name),
     toggle(name, enabled) {
@@ -295,9 +297,11 @@ function loadTouchMobile({
   window.term = {
     input(data, wasUserInput) {
       terminalInputs.push({ data, wasUserInput });
+      terminalEvents.push({ data, type: "input" });
     },
     paste(data) {
       terminalPastes.push(data);
+      terminalEvents.push({ data, type: "paste" });
     },
     getSelection: () => currentSelection,
     focus() {
@@ -335,6 +339,7 @@ function loadTouchMobile({
     toolbar,
     terminalInputs,
     terminalPastes,
+    terminalEvents,
     prompts,
     get copiedText() {
       return copiedText;
@@ -363,14 +368,20 @@ function loadTouchMobile({
     setSelection(value) {
       currentSelection = value;
     },
-    toolbarButton(label) {
-      return toolbar.children.find((button) => button.textContent === label);
+    toolbarButton(name) {
+      const actions = toolbar.children.find(
+        (child) => child.className === "herdr-web-toolbar-actions",
+      );
+      return actions.children.find((button) => button.dataset.action === name);
     },
     get pasteInput() {
       return toolbar.children.find((child) => child.className === "herdr-web-paste-input");
     },
     rootHasClass(name) {
       return rootClasses.has(name);
+    },
+    rootStyle(name) {
+      return rootStyles.get(name);
     },
   };
 }
@@ -415,16 +426,32 @@ test("toolbar Enter pastes input text and sends return when empty", async () => 
   assert.equal(runtime.rootHasClass("herdr-web-toolbar-visible"), true);
   runtime.focusPasteInput();
   assert.equal(runtime.toolbar.hidden, false);
-  await runtime.click(runtime.toolbarButton("Esc"));
+  assert.equal(runtime.toolbarButton("escape").textContent, "⎋");
+  assert.equal(runtime.toolbarButton("enter").textContent, "↵");
+  assert.equal(runtime.pasteInput.style.height, "72px");
+  assert.equal(runtime.rootStyle("--herdr-web-toolbar-height"), "80px");
+  await runtime.click(runtime.toolbarButton("escape"));
   runtime.pasteInput.value = "first line\nsecond line";
-  await runtime.click(runtime.toolbarButton("Enter"));
+  runtime.pasteInput.scrollHeight = 160;
+  runtime.trigger(runtime.pasteInput, "input");
+  assert.equal(runtime.pasteInput.style.height, "128px");
+  assert.equal(runtime.pasteInput.style.overflowY, "auto");
+  assert.equal(runtime.rootStyle("--herdr-web-toolbar-height"), "136px");
+  await runtime.click(runtime.toolbarButton("enter"));
   assert.equal(runtime.pasteInput.value, "");
-  await runtime.click(runtime.toolbarButton("Enter"));
+  await runtime.click(runtime.toolbarButton("enter"));
   assert.deepEqual(runtime.terminalInputs, [
     { data: "\x1b", wasUserInput: true },
     { data: "\r", wasUserInput: true },
+    { data: "\r", wasUserInput: true },
   ]);
   assert.deepEqual(runtime.terminalPastes, ["first line\nsecond line"]);
+  assert.deepEqual(runtime.terminalEvents, [
+    { data: "\x1b", type: "input" },
+    { data: "first line\nsecond line", type: "paste" },
+    { data: "\r", type: "input" },
+    { data: "\r", type: "input" },
+  ]);
 });
 
 test("iOS virtual Chinese punctuation is forwarded as non-composition input", () => {

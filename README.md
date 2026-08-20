@@ -115,9 +115,9 @@ Options:
 - Long-press and drag selects terminal text; a temporary Copy button writes the
   xterm selection through Clipboard API or an HTTP-compatible copy event. If
   WebKit rejects both, the selected text is presented in a native copy field.
-- Focusing the terminal shows a compact `Esc` / paste input / `Enter` toolbar
-  above the virtual keyboard. Paste or type into the input, then press `Enter`
-  to send the text; when the input is empty, `Enter` sends a terminal return.
+- Focusing the terminal shows an expandable paste input with stacked `⎋` and
+  `↵` controls above the virtual keyboard. `↵` pastes non-empty input and then
+  sends a terminal return; with empty input, it sends only the return.
 - A two-finger tap sends a right mouse click to Herdr.
 - The terminal follows `visualViewport` when a mobile keyboard changes the
   visible area, including iOS viewport offsets.
