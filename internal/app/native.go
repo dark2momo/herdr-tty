@@ -28,8 +28,37 @@ func RunNative(ctx context.Context, config Config, stdin io.Reader, stdout, stde
 	command.Stdin = stdin
 	command.Stdout = stdout
 	command.Stderr = stderr
-	if err := command.Run(); err != nil {
+	if !config.OpenBrowser {
+		if err := command.Run(); err != nil {
+			return fmt.Errorf("run ttyd: %w", err)
+		}
+		return nil
+	}
+
+	if err := command.Start(); err != nil {
+		return fmt.Errorf("start ttyd: %w", err)
+	}
+	childExit := make(chan error, 1)
+	go func() { childExit <- command.Wait() }()
+	if err := waitForBackend(ctx, config.Listen, childExit); err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
+		return err
+	}
+	browserURL := config.browserURL()
+	fmt.Fprintf(stdout, "Herdr Web listening on %s\n", browserURL)
+	if err := openBrowserURL(browserURL); err != nil {
+		fmt.Fprintf(stderr, "open browser: %v\n", err)
+	}
+	select {
+	case <-ctx.Done():
+		<-childExit
+		return nil
+	case err := <-childExit:
+		if err == nil {
+			return nil
+		}
 		return fmt.Errorf("run ttyd: %w", err)
 	}
-	return nil
 }
