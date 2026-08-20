@@ -142,11 +142,16 @@ function loadMobile({
   };
 }
 
-function loadTouchMobile({ promptValue = null, selection = "selected text" } = {}) {
+function loadTouchMobile({
+  copyEventSupported = true,
+  promptValue = null,
+  selection = "selected text",
+} = {}) {
   const documentListeners = new Map();
   const rootClasses = new Set();
   const terminalInputs = [];
   const terminalPastes = [];
+  const prompts = [];
   let copiedText = "";
   let selectedControl = null;
   let document;
@@ -187,6 +192,9 @@ function loadTouchMobile({ promptValue = null, selection = "selected text" } = {
         document.activeElement = element;
       },
       select() {
+        selectedControl = element;
+      },
+      setSelectionRange() {
         selectedControl = element;
       },
       remove() {
@@ -238,8 +246,20 @@ function loadTouchMobile({ promptValue = null, selection = "selected text" } = {
     getSelection: () => ({ toString: () => "" }),
     execCommand(command) {
       if (command !== "copy" || !selectedControl) return false;
-      copiedText = selectedControl.value;
-      return true;
+      if (copyEventSupported) {
+        for (const listener of selectedControl.listeners.get("copy") || []) {
+          listener({
+            clipboardData: {
+              setData(type, value) {
+                if (type === "text/plain") copiedText = value;
+              },
+            },
+            preventDefault() {},
+          });
+        }
+      }
+      // WebKit may report false even when the copy event accepted text.
+      return false;
     },
   };
 
@@ -266,7 +286,10 @@ function loadTouchMobile({ promptValue = null, selection = "selected text" } = {
       callback();
       return 1;
     },
-    prompt: () => promptValue,
+    prompt(...args) {
+      prompts.push(args);
+      return promptValue;
+    },
   };
   window.term = {
     input(data, wasUserInput) {
@@ -311,6 +334,7 @@ function loadTouchMobile({ promptValue = null, selection = "selected text" } = {
     toolbar,
     terminalInputs,
     terminalPastes,
+    prompts,
     get copiedText() {
       return copiedText;
     },
@@ -339,6 +363,16 @@ test("copy button writes the xterm selection on LAN HTTP", async () => {
   await runtime.click(runtime.copyButton);
 
   assert.equal(runtime.copiedText, "first line\nsecond line");
+  assert.equal(runtime.copyButton.hidden, true);
+  assert.equal(runtime.copyButton.disabled, false);
+});
+
+test("copy button offers a native manual field when WebKit rejects programmatic copy", async () => {
+  const runtime = loadTouchMobile({ copyEventSupported: false, selection: "manual text" });
+
+  await runtime.click(runtime.copyButton);
+
+  assert.deepEqual(runtime.prompts, [["Copy selected text", "manual text"]]);
   assert.equal(runtime.copyButton.hidden, true);
   assert.equal(runtime.copyButton.disabled, false);
 });

@@ -175,17 +175,27 @@
     const previousFocus = document.activeElement;
     const textarea = document.createElement("textarea");
     textarea.value = text;
-    textarea.readOnly = true;
     textarea.setAttribute("aria-hidden", "true");
     textarea.style.position = "fixed";
-    textarea.style.top = "-1000px";
+    textarea.style.top = "0";
+    textarea.style.left = "0";
+    textarea.style.width = "1px";
+    textarea.style.height = "1px";
+    textarea.style.padding = "0";
+    textarea.style.border = "0";
     textarea.style.opacity = "0";
     document.body.appendChild(textarea);
     let copied = false;
+    textarea.addEventListener("copy", (event) => {
+      if (!event.clipboardData) return;
+      event.clipboardData.setData("text/plain", text);
+      event.preventDefault();
+      copied = true;
+    });
     try {
       textarea.focus({ preventScroll: true });
-      textarea.select();
-      copied = document.execCommand("copy");
+      textarea.setSelectionRange(0, textarea.value.length);
+      copied = document.execCommand("copy") || copied;
     } finally {
       textarea.remove();
       if (previousFocus?.classList?.contains("xterm-helper-textarea")) {
@@ -193,6 +203,12 @@
       }
     }
     return copied;
+  }
+
+  function offerManualCopy(text) {
+    if (typeof window.prompt !== "function") return false;
+    window.prompt("Copy selected text", text);
+    return true;
   }
 
   async function copyText(text) {
@@ -205,7 +221,7 @@
         // LAN HTTP and browser permission policies can reject Clipboard API.
       }
     }
-    return legacyCopyText(text);
+    return legacyCopyText(text) || offerManualCopy(text);
   }
 
   function sendTerminalInput(data) {
