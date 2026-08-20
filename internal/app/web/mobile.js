@@ -84,73 +84,105 @@
   document.addEventListener("focusout", scheduleViewportUpdate, { passive: true });
   updateViewport(true);
 
-  let pendingIOSPunctuation = null;
+  function patchIOSIME() {
+    if (!isIOS) return true;
 
-  function isIOSVirtualPunctuation(event) {
-    return (
-      isIOS &&
-      !event.defaultPrevented &&
-      !event.isComposing &&
-      event.inputType === "insertText" &&
-      !!event.data &&
-      /^\p{P}+$/u.test(event.data) &&
-      event.target?.classList?.contains("xterm-helper-textarea") &&
-      typeof window.term?.input === "function"
-    );
-  }
+    // ttyd 1.7.7 embeds xterm.js 5.4.0. Port the pending keyCode=229
+    // baseline/keyup fix from xterm.js #5836 onto that exact runtime without
+    // adding a second frontend build or intercepting terminal shortcuts.
+    const helper = window.term?._core?._compositionHelper;
+    const textarea = helper?._textarea;
+    if (!helper || !textarea) return false;
+    if (typeof helper.keyup === "function" || helper.__herdrWebIOSIME) return true;
 
-  function sendIOSPunctuation(data) {
-    window.term.input(data, true);
-  }
+    helper.__herdrWebIOSIME = true;
+    const originalKeydown = helper.keydown.bind(helper);
+    let pending229;
 
-  document.addEventListener(
-    "beforeinput",
-    (event) => {
-      // xterm.js #5835: iOS exposes virtual Chinese punctuation here, but its
-      // keyCode 229 path can drop the corresponding terminal input.
-      if (!isIOSVirtualPunctuation(event)) return;
+    function clearPending229() {
+      if (pending229?.timer != null) window.clearTimeout(pending229.timer);
+      pending229 = undefined;
+    }
 
-      const target = event.target;
-      pendingIOSPunctuation = {
-        data: event.data,
-        selectionEnd: target.selectionEnd,
-        selectionStart: target.selectionStart,
-        target,
-        value: target.value,
-      };
-      event.stopImmediatePropagation();
-      if (event.cancelable) {
-        event.preventDefault();
-        pendingIOSPunctuation = null;
-        sendIOSPunctuation(event.data);
+    function handleTextareaChanges(oldValue) {
+      const newValue = textarea.value;
+      if (newValue === oldValue) return false;
+      if (newValue.length < oldValue.length) {
+        helper._dataAlreadySent = newValue;
+        helper._coreService.triggerDataEvent("\x7f", true);
+        return true;
       }
-    },
-    { capture: true, passive: false },
-  );
 
-  document.addEventListener(
-    "input",
-    (event) => {
-      const pending = pendingIOSPunctuation;
-      if (
-        !pending ||
-        event.target !== pending.target ||
-        event.inputType !== "insertText" ||
-        event.data !== pending.data
+      let commonPrefixLength = 0;
+      while (
+        commonPrefixLength < oldValue.length &&
+        commonPrefixLength < newValue.length &&
+        oldValue.charCodeAt(commonPrefixLength) === newValue.charCodeAt(commonPrefixLength)
       ) {
+        commonPrefixLength++;
+      }
+
+      const removedCount = oldValue.length - commonPrefixLength;
+      const inserted = newValue.substring(commonPrefixLength);
+      helper._dataAlreadySent = inserted;
+      helper._coreService.triggerDataEvent(`${"\x7f".repeat(removedCount)}${inserted}`, true);
+      return true;
+    }
+
+    function flushPending229(source) {
+      const pending = pending229;
+      if (!pending) return;
+      if (helper._isComposing) {
+        clearPending229();
         return;
       }
-
-      pendingIOSPunctuation = null;
-      event.stopImmediatePropagation();
-      pending.target.value = pending.value;
-      if (typeof pending.target.setSelectionRange === "function") {
-        pending.target.setSelectionRange(pending.selectionStart, pending.selectionEnd);
+      if (source === "timer") pending.timerFired = true;
+      else pending.keyupFired = true;
+      if (
+        handleTextareaChanges(pending.baseline) ||
+        (pending.timerFired && pending.keyupFired)
+      ) {
+        clearPending229();
       }
-      sendIOSPunctuation(pending.data);
-    },
-    { capture: true },
-  );
+    }
+
+    function ensurePending229Timer() {
+      if (pending229.timer != null) return;
+      const pending = pending229;
+      pending.timer = true;
+      const timer = window.setTimeout(() => {
+        if (pending229 !== pending) return;
+        pending.timer = null;
+        flushPending229("timer");
+      }, 0);
+      if (pending229 === pending && pending.timer === true) pending.timer = timer;
+    }
+
+    helper.keydown = (event) => {
+      if (
+        event.keyCode !== 229 ||
+        helper._isComposing ||
+        helper._isSendingComposition
+      ) {
+        return originalKeydown(event);
+      }
+      if (!pending229) {
+        pending229 = {
+          baseline: textarea.value,
+          keyupFired: false,
+          timer: null,
+          timerFired: false,
+        };
+      }
+      ensurePending229Timer();
+      return false;
+    };
+    helper.keyup = () => flushPending229("keyup");
+    textarea.addEventListener("keyup", helper.keyup);
+    return true;
+  }
+
+  patchIOSIME();
 
   document.addEventListener("contextmenu", (event) => event.preventDefault());
 
@@ -448,6 +480,7 @@
   function findTerminal() {
     const terminal = document.querySelector(".xterm");
     if (!terminal) return false;
+    patchIOSIME();
     attachTouchControls(terminal);
     return true;
   }

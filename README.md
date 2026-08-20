@@ -10,8 +10,8 @@ standard library, and the existing ttyd/Herdr binaries. No Node.js runtime,
 frontend framework, database, or separate control plane.
 
 On touch devices, a small vanilla JavaScript/CSS layer adds drag and inertial
-scrolling while leaving keyboard events untouched. It emits standard wheel
-events, so xterm.js and Herdr retain their native scroll and mouse semantics.
+scrolling. It emits standard wheel events, so xterm.js and Herdr retain their
+native scroll and mouse semantics.
 
 It starts ttyd as a loopback-only backend and puts a small Cookie-authenticated
 Go gateway in front. The gateway keeps credentials out of ttyd's process
@@ -64,12 +64,14 @@ Options:
   visible area, including iOS viewport offsets.
 - On iPad Chrome, a small stale focus inset is ignored after the keyboard
   closes, while an open keyboard still resizes the terminal above it.
-- iOS virtual Chinese keyboards forward punctuation through a narrow
-  `beforeinput`/`input` fallback into ttyd's public xterm instance; ordinary
-  text, active composition, desktop keyboards, and Herdr shortcuts keep their
-  native paths.
+- ttyd 1.7.7's xterm.js 5.4.0 receives the pending `keyCode=229` baseline/keyup
+  fallback from [xterm.js PR #5836](https://github.com/xtermjs/xterm.js/pull/5836)
+  at runtime, fixing punctuation and double-space conversion from iOS Chinese
+  keyboards. The patch is version-gated and leaves ordinary text, active
+  composition, desktop keyboards, and Herdr shortcuts on their native paths.
 - The browser context menu is suppressed inside the web app.
-- No `keydown`, `keyup`, or `keypress` handler is installed, so Herdr keyboard
+- No document-level keyboard handler is installed. The iOS workaround observes
+  xterm's helper textarea `keyup` without canceling or stopping it, so Herdr
   shortcuts continue through ttyd unchanged.
 
 ## Security

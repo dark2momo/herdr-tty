@@ -14,12 +14,16 @@ function loadMobile({
   maxTouchPoints,
   layoutHeight = 1024,
   layoutWidth = 1366,
+  deferTimers = false,
 }) {
   const styles = new Map();
   const documentListeners = new Map();
+  const textareaListeners = new Map();
   const viewportListeners = new Map();
   const noop = () => {};
+  const timers = new Map();
   let nextTimer = 1;
+  let originalKeydownCalls = 0;
 
   const visualViewport = {
     height: layoutHeight,
@@ -41,16 +45,40 @@ function loadMobile({
     addEventListener: noop,
     dispatchEvent: noop,
     matchMedia: () => ({ matches: false }),
+    clearTimeout(timer) {
+      timers.delete(timer);
+    },
     setTimeout(callback) {
-      callback();
-      return nextTimer++;
+      const timer = nextTimer++;
+      if (deferTimers) timers.set(timer, callback);
+      else callback();
+      return timer;
     },
   };
   const terminalInputs = [];
-  window.term = {
-    input(data, wasUserInput) {
-      terminalInputs.push({ data, wasUserInput });
+  const textarea = {
+    value: "",
+    addEventListener(name, listener) {
+      textareaListeners.set(name, listener);
     },
+  };
+  const compositionHelper = {
+    _coreService: {
+      triggerDataEvent(data, wasUserInput) {
+        terminalInputs.push({ data, wasUserInput });
+      },
+    },
+    _dataAlreadySent: "",
+    _isComposing: false,
+    _isSendingComposition: false,
+    _textarea: textarea,
+    keydown() {
+      originalKeydownCalls++;
+      return true;
+    },
+  };
+  window.term = {
+    _core: { _compositionHelper: compositionHelper },
   };
   const document = {
     documentElement: {
@@ -88,47 +116,23 @@ function loadMobile({
   return {
     styles,
     terminalInputs,
-    dispatchBeforeInput(overrides = {}) {
-      let prevented = false;
-      let stopped = false;
-      const target = overrides.target || {
-        classList: { contains: (name) => name === "xterm-helper-textarea" },
-        selectionEnd: 2,
-        selectionStart: 2,
-        value: "中文",
-        setSelectionRange(start, end) {
-          this.selectionStart = start;
-          this.selectionEnd = end;
-        },
-      };
-      documentListeners.get("beforeinput")({
-        cancelable: true,
-        data: "，",
-        defaultPrevented: false,
-        inputType: "insertText",
-        isComposing: false,
-        target,
-        preventDefault() {
-          prevented = true;
-        },
-        stopImmediatePropagation() {
-          stopped = true;
-        },
-        ...overrides,
-      });
-      return { prevented, stopped, target };
+    compositionHelper,
+    textarea,
+    dispatchKeydown(overrides = {}) {
+      return compositionHelper.keydown({ key: "，", keyCode: 229, ...overrides });
     },
-    dispatchInput(overrides = {}) {
-      let stopped = false;
-      documentListeners.get("input")({
-        data: "，",
-        inputType: "insertText",
-        stopImmediatePropagation() {
-          stopped = true;
-        },
-        ...overrides,
-      });
-      return { stopped };
+    dispatchKeyup(overrides = {}) {
+      textareaListeners.get("keyup")?.({ key: "，", keyCode: 0, ...overrides });
+    },
+    originalKeydownCalls() {
+      return originalKeydownCalls;
+    },
+    flushTimers() {
+      while (timers.size > 0) {
+        const queued = [...timers.entries()];
+        timers.clear();
+        for (const [, callback] of queued) callback();
+      }
     },
     updateViewport({ height, width = layoutWidth, top = 0, left = 0 }) {
       visualViewport.height = height;
@@ -142,63 +146,80 @@ function loadMobile({
   };
 }
 
-test("iOS virtual Chinese punctuation is forwarded as non-composition input", () => {
+test("iOS keyCode 229 punctuation is forwarded on keyup", () => {
   const runtime = loadMobile({
     userAgent: "Mozilla/5.0 (iPhone) CriOS/140.0 Mobile/15E148 Safari/604.1",
     maxTouchPoints: 5,
   });
 
-  const result = runtime.dispatchBeforeInput({ data: "，。！？" });
+  runtime.textarea.value = "中文";
+  const handled = runtime.dispatchKeydown();
+  runtime.textarea.value = "中文，";
+  runtime.dispatchKeyup();
 
-  assert.equal(result.prevented, true);
-  assert.equal(result.stopped, true);
-  assert.deepEqual(runtime.terminalInputs, [{ data: "，。！？", wasUserInput: true }]);
+  assert.equal(handled, false);
+  assert.equal(runtime.originalKeydownCalls(), 0);
+  assert.deepEqual(runtime.terminalInputs, [{ data: "，", wasUserInput: true }]);
 });
 
-test("non-cancelable iOS punctuation is restored and forwarded once on input", () => {
+test("iOS enumeration comma follows the same pending 229 path", () => {
   const runtime = loadMobile({
     userAgent: "Mozilla/5.0 (iPhone) Version/26.0 Mobile/15E148 Safari/604.1",
     maxTouchPoints: 5,
   });
 
-  const before = runtime.dispatchBeforeInput({ cancelable: false, data: "、" });
-  assert.equal(before.prevented, false);
-  assert.equal(before.stopped, true);
-  assert.deepEqual(runtime.terminalInputs, []);
+  runtime.textarea.value = "中文";
+  runtime.dispatchKeydown({ key: "、" });
+  runtime.textarea.value = "中文、";
+  runtime.dispatchKeyup({ key: "、" });
 
-  before.target.value = "中文、";
-  before.target.selectionStart = before.target.selectionEnd = 3;
-  const input = runtime.dispatchInput({ data: "、", target: before.target });
-
-  assert.equal(input.stopped, true);
-  assert.equal(before.target.value, "中文");
-  assert.equal(before.target.selectionStart, 2);
-  assert.equal(before.target.selectionEnd, 2);
   assert.deepEqual(runtime.terminalInputs, [{ data: "、", wasUserInput: true }]);
 });
 
-for (const input of [
-  { name: "ordinary text", overrides: { data: "中" } },
-  { name: "active composition", overrides: { isComposing: true } },
-  { name: "deletion", overrides: { data: null, inputType: "deleteContentBackward" } },
-  {
-    name: "non-terminal input",
-    overrides: { target: { classList: { contains: () => false }, dispatchEvent() {} } },
-  },
-]) {
-  test(`iOS punctuation fallback ignores ${input.name}`, () => {
-    const runtime = loadMobile({
-      userAgent: "Mozilla/5.0 (iPhone) Version/26.0 Mobile/15E148 Safari/604.1",
-      maxTouchPoints: 5,
-    });
-
-    const result = runtime.dispatchBeforeInput(input.overrides);
-
-    assert.equal(result.prevented, false);
-    assert.equal(result.stopped, false);
-    assert.deepEqual(runtime.terminalInputs, []);
+test("iOS timer fallback sends once and keyup does not duplicate it", () => {
+  const runtime = loadMobile({
+    userAgent: "Mozilla/5.0 (iPhone) Version/26.0 Mobile/15E148 Safari/604.1",
+    maxTouchPoints: 5,
+    deferTimers: true,
   });
-}
+
+  runtime.textarea.value = "中文";
+  runtime.dispatchKeydown();
+  runtime.textarea.value = "中文，";
+  runtime.flushTimers();
+  runtime.dispatchKeyup();
+
+  assert.deepEqual(runtime.terminalInputs, [{ data: "，", wasUserInput: true }]);
+});
+
+test("iOS double-space replacement sends a precise delete and insert", () => {
+  const runtime = loadMobile({
+    userAgent: "Mozilla/5.0 (iPhone) Version/26.0 Mobile/15E148 Safari/604.1",
+    maxTouchPoints: 5,
+  });
+
+  runtime.textarea.value = "中文 ";
+  runtime.dispatchKeydown({ key: " " });
+  runtime.textarea.value = "中文。";
+  runtime.dispatchKeyup({ key: " " });
+
+  assert.deepEqual(runtime.terminalInputs, [{ data: "\x7f。", wasUserInput: true }]);
+});
+
+test("ordinary keys and active composition stay on xterm's native path", () => {
+  const runtime = loadMobile({
+    userAgent: "Mozilla/5.0 (iPhone) Version/26.0 Mobile/15E148 Safari/604.1",
+    maxTouchPoints: 5,
+  });
+
+  assert.equal(runtime.dispatchKeydown({ key: "a", keyCode: 65 }), true);
+  runtime.compositionHelper._isComposing = true;
+  assert.equal(runtime.dispatchKeydown(), true);
+  runtime.dispatchKeyup();
+
+  assert.equal(runtime.originalKeydownCalls(), 2);
+  assert.deepEqual(runtime.terminalInputs, []);
+});
 
 test("non-iOS virtual keyboards keep native input handling", () => {
   const runtime = loadMobile({
@@ -206,10 +227,10 @@ test("non-iOS virtual keyboards keep native input handling", () => {
     maxTouchPoints: 5,
   });
 
-  const result = runtime.dispatchBeforeInput({ data: "，" });
+  const result = runtime.dispatchKeydown();
 
-  assert.equal(result.prevented, false);
-  assert.equal(result.stopped, false);
+  assert.equal(result, true);
+  assert.equal(runtime.originalKeydownCalls(), 1);
   assert.deepEqual(runtime.terminalInputs, []);
 });
 

@@ -59,9 +59,9 @@ func TestMobileAssetsRequireAuthentication(t *testing.T) {
 	}
 }
 
-func TestMobileScriptDoesNotInterceptKeyboard(t *testing.T) {
+func TestMobileScriptKeepsKeyboardHandlingInsideXterm(t *testing.T) {
 	script := string(mobileJavaScript)
-	for _, event := range []string{"keydown", "keyup", "keypress"} {
+	for _, event := range []string{`document.addEventListener("keydown"`, `document.addEventListener("keyup"`, "keypress"} {
 		if strings.Contains(script, event) {
 			t.Fatalf("mobile script unexpectedly contains %q", event)
 		}
@@ -77,10 +77,11 @@ func TestMobileScriptDoesNotInterceptKeyboard(t *testing.T) {
 		"useLayoutViewport",
 		"dispatchingResize",
 		"focusout",
-		"beforeinput",
-		"xterm-helper-textarea",
-		`/^\p{P}+$/u`,
-		"window.term.input",
+		"patchIOSIME",
+		"_compositionHelper",
+		"event.keyCode !== 229",
+		`textarea.addEventListener("keyup"`,
+		"triggerDataEvent",
 		"contextmenu",
 		"twoFingerTapDelay",
 		`sendMouse("mousedown", twoFingerX, twoFingerY, 2, 2)`,
