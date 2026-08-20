@@ -83,6 +83,7 @@
     left: var(--herdr-web-viewport-left);
     z-index: 30;
     display: flex;
+    box-sizing: border-box;
     gap: 6px;
     align-items: center;
     width: var(--herdr-web-viewport-width);
