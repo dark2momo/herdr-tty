@@ -82,6 +82,12 @@ The default form login uses an HTTP-only, same-site Cookie signed by an
 in-memory random key. Restarting Herdr Web invalidates existing sessions.
 Credentials stay in Herdr Web and are not passed to ttyd: all `HERDR_WEB_*`
 variables are removed from the environment inherited by ttyd and Herdr.
+Outer Herdr pane identity is removed as well, while `HERDR_SESSION`,
+`HERDR_SOCKET_PATH`, and `HERDR_CONFIG_PATH` remain available so a launch from
+inside Herdr can attach to the same runtime without becoming a nested session.
+TLS key logging through `SSLKEYLOGFILE`, `NSS_KEYLOGFILE`, or Node's
+`--tls-keylog` option is not inherited by ttyd, Herdr, or their descendants.
+API keys, proxy settings, and other ordinary user environment remain intact.
 
 The original ttyd Basic Authentication mode remains available with
 `--auth native`. Native mode receives `user:password` as a ttyd process
