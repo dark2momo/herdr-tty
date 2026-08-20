@@ -16,6 +16,7 @@ import (
 const (
 	usernameEnv = "HERDR_WEB_USERNAME"
 	passwordEnv = "HERDR_WEB_PASSWORD"
+	herdrEnv    = "HERDR_ENV"
 )
 
 type Config struct {
@@ -48,6 +49,10 @@ type getenvFunc func(string) string
 type getwdFunc func() (string, error)
 
 func ParseConfig(args []string, getenv getenvFunc, getwd getwdFunc) (Config, error) {
+	if getenv(herdrEnv) != "" {
+		return Config{}, errors.New("refusing to start inside Herdr: HERDR_ENV is set; launch herdr-web from a regular shell or service")
+	}
+
 	workingDirectory, err := getwd()
 	if err != nil {
 		return Config{}, fmt.Errorf("get working directory: %w", err)

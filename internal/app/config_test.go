@@ -59,6 +59,20 @@ func TestParseConfigDefaultsToLocalAndOpensBrowser(t *testing.T) {
 	}
 }
 
+func TestParseConfigRejectsLaunchInsideHerdr(t *testing.T) {
+	_, err := ParseConfig(nil, func(key string) string {
+		if key == herdrEnv {
+			return "1"
+		}
+		return ""
+	}, func() (string, error) {
+		return "/workspace", nil
+	})
+	if err == nil || !strings.Contains(err.Error(), "refusing to start inside Herdr") {
+		t.Fatalf("expected nested launch error, got %v", err)
+	}
+}
+
 func TestParseConfigRequiresCredentialsForFormAuth(t *testing.T) {
 	_, err := ParseConfig([]string{"--auth", "form"}, func(string) string { return "" }, func() (string, error) {
 		return "/workspace", nil

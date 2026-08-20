@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestChildEnvironmentRemovesPrivateLaunchContext(t *testing.T) {
+func TestChildEnvironmentRemovesCredentialsAndTLSKeyLogs(t *testing.T) {
 	environment := []string{
 		"PATH=/usr/bin",
 		"HERDR_WEB_USERNAME=alice",
@@ -36,6 +36,16 @@ func TestChildEnvironmentRemovesPrivateLaunchContext(t *testing.T) {
 	}
 	want := []string{
 		"PATH=/usr/bin",
+		"HERDR_ENV=1",
+		"HERDR_BIN_PATH=/usr/local/bin/herdr",
+		"HERDR_WORKSPACE_ID=workspace-1",
+		"HERDR_TAB_ID=tab-1",
+		"HERDR_PANE_ID=pane-1",
+		"HERDR_PANE_RUNTIME_ID=runtime-1",
+		"HERDR_ACTIVE_WORKSPACE_ID=workspace-1",
+		"HERDR_PLUGIN_ID=plugin-1",
+		"HERDR_STARTUP_CWD=/outer",
+		"HERDR_REATTACH_COMMAND=herdr --remote host",
 		"HERDR_SESSION=work",
 		"HERDR_SOCKET_PATH=/tmp/herdr.sock",
 		"HERDR_CONFIG_PATH=/home/alice/.config/herdr/config.toml",
