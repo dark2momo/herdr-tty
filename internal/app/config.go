@@ -26,6 +26,7 @@ type Config struct {
 	CWD         string
 	MaxClients  int
 	AuthMode    string
+	Session     string
 	SessionTTL  time.Duration
 	Username    string
 	Password    string
@@ -40,6 +41,7 @@ type fileConfig struct {
 	CWD         *string  `json:"cwd"`
 	MaxClients  *int     `json:"max_clients"`
 	AuthMode    *string  `json:"auth"`
+	Session     *string  `json:"session"`
 	SessionTTL  *string  `json:"session_ttl"`
 	OpenBrowser *bool    `json:"open_browser"`
 	HerdrArgs   []string `json:"herdr_args"`
@@ -94,6 +96,7 @@ func ParseConfig(args []string, getenv getenvFunc, getwd getwdFunc) (Config, err
 	flags.StringVar(&config.CWD, "cwd", config.CWD, "working directory")
 	flags.IntVar(&config.MaxClients, "max-clients", config.MaxClients, "maximum concurrent clients")
 	flags.StringVar(&config.AuthMode, "auth", config.AuthMode, "authentication mode: auto, local, form, or native")
+	flags.StringVar(&config.Session, "session", config.Session, "named Herdr session")
 	flags.DurationVar(&config.SessionTTL, "session-ttl", config.SessionTTL, "login session lifetime")
 	flags.BoolVar(&openBrowser, "open", false, "open the web terminal in a browser")
 	flags.BoolVar(&noOpenBrowser, "no-open", false, "do not open a browser")
@@ -105,6 +108,18 @@ func ParseConfig(args []string, getenv getenvFunc, getwd getwdFunc) (Config, err
 	}
 	if parsedArgs := flags.Args(); len(parsedArgs) > 0 {
 		config.HerdrArgs = parsedArgs
+	}
+	sessionSet := loaded.Session != nil
+	flags.Visit(func(current *flag.Flag) {
+		if current.Name == "session" {
+			sessionSet = true
+		}
+	})
+	if sessionSet && config.Session == "" {
+		return Config{}, errors.New("--session cannot be empty")
+	}
+	if config.Session != "" && hasHerdrSessionArgument(config.HerdrArgs) {
+		return Config{}, errors.New("--session cannot be combined with a Herdr --session argument after --")
 	}
 	if openBrowser && noOpenBrowser {
 		return Config{}, errors.New("--open and --no-open cannot be used together")
@@ -203,6 +218,9 @@ func applyFileConfig(config *Config, loaded fileConfig) error {
 	if loaded.AuthMode != nil {
 		config.AuthMode = *loaded.AuthMode
 	}
+	if loaded.Session != nil {
+		config.Session = *loaded.Session
+	}
 	if loaded.SessionTTL != nil {
 		ttl, err := time.ParseDuration(*loaded.SessionTTL)
 		if err != nil {
@@ -214,6 +232,15 @@ func applyFileConfig(config *Config, loaded fileConfig) error {
 		config.HerdrArgs = append([]string(nil), loaded.HerdrArgs...)
 	}
 	return nil
+}
+
+func hasHerdrSessionArgument(args []string) bool {
+	for _, argument := range args {
+		if argument == "--session" || strings.HasPrefix(argument, "--session=") {
+			return true
+		}
+	}
+	return false
 }
 
 func (config *Config) resolveAuthMode() error {
@@ -309,9 +336,8 @@ func (config Config) BackendArgs(port int) []string {
 		"--max-clients", strconv.Itoa(config.MaxClients),
 		"--cwd", config.CWD,
 		"--terminal-type", "xterm-256color",
-		config.Herdr,
 	}
-	return append(args, config.HerdrArgs...)
+	return config.appendHerdrCommand(args)
 }
 
 func (config Config) NativeArgs() []string {
@@ -326,7 +352,14 @@ func (config Config) NativeArgs() []string {
 		"--credential", config.Username + ":" + config.Password,
 		"--cwd", config.CWD,
 		"--terminal-type", "xterm-256color",
-		config.Herdr,
+	}
+	return config.appendHerdrCommand(args)
+}
+
+func (config Config) appendHerdrCommand(args []string) []string {
+	args = append(args, config.Herdr)
+	if config.Session != "" {
+		args = append(args, "--session", config.Session)
 	}
 	return append(args, config.HerdrArgs...)
 }
