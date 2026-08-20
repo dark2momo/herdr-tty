@@ -246,11 +246,13 @@
     toolbar.setAttribute("role", "toolbar");
     toolbar.setAttribute("aria-label", "Terminal input controls");
 
-    function appendButton(label, action) {
+    function appendButton(parent, label, action, name) {
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = label;
-      button.dataset.action = label.toLowerCase();
+      button.dataset.action = name;
+      button.setAttribute("aria-label", name === "escape" ? "Escape" : "Enter");
+      button.setAttribute("title", name === "escape" ? "Escape" : "Enter");
       button.addEventListener("pointerdown", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -260,11 +262,9 @@
         event.stopPropagation();
         void action();
       });
-      toolbar.appendChild(button);
+      parent.appendChild(button);
       return button;
     }
-
-    appendButton("Esc", () => sendTerminalInput("\x1b"));
 
     const pasteInput = document.createElement("textarea");
     pasteInput.className = "herdr-web-paste-input";
@@ -274,18 +274,50 @@
     pasteInput.setAttribute("enterkeyhint", "send");
     toolbar.appendChild(pasteInput);
 
+    const inputMinHeight = 72;
+    const inputMaxHeight = 128;
+    const toolbarPaddingHeight = 8;
+    let toolbarFitFrame = 0;
+
+    function resizePasteInput() {
+      pasteInput.style.height = "auto";
+      const contentHeight = Number(pasteInput.scrollHeight) || inputMinHeight;
+      const inputHeight = Math.min(inputMaxHeight, Math.max(inputMinHeight, contentHeight));
+      pasteInput.style.height = `${inputHeight}px`;
+      pasteInput.style.overflowY = contentHeight > inputMaxHeight ? "auto" : "hidden";
+      root.style.setProperty(
+        "--herdr-web-toolbar-height",
+        `${inputHeight + toolbarPaddingHeight}px`,
+      );
+      if (toolbar.hidden) return;
+      if (toolbarFitFrame) cancelAnimationFrame(toolbarFitFrame);
+      toolbarFitFrame = requestAnimationFrame(() => {
+        toolbarFitFrame = 0;
+        notifyTerminalResize();
+      });
+    }
+
+    pasteInput.addEventListener("input", resizePasteInput);
+
     function submitPasteInput() {
       if (pasteInput.value !== "") {
         const text = pasteInput.value;
-        pasteInput.value = "";
         pasteTerminalText(text);
+        sendTerminalInput("\r");
+        pasteInput.value = "";
+        resizePasteInput();
         return;
       }
       sendTerminalInput("\r");
     }
 
-    appendButton("Enter", submitPasteInput);
+    const actions = document.createElement("div");
+    actions.className = "herdr-web-toolbar-actions";
+    appendButton(actions, "⎋", () => sendTerminalInput("\x1b"), "escape");
+    appendButton(actions, "↵", submitPasteInput, "enter");
+    toolbar.appendChild(actions);
     document.body.appendChild(toolbar);
+    resizePasteInput();
 
     function setVisible(visible) {
       if (toolbar.hidden === !visible) return;
