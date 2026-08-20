@@ -63,9 +63,10 @@ var loginTemplate = template.Must(template.New("login").Parse(`<!doctype html>
       const isTouchApple =
         /\b(iPad|iPhone|iPod)\b/.test(userAgent) ||
         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-      const isSafari =
-        /\bSafari\//.test(userAgent) && !/\b(CriOS|FxiOS|EdgiOS)\//.test(userAgent);
-      if (!isTouchApple || !isSafari) return;
+      const isStandalone =
+        navigator.standalone === true ||
+        window.matchMedia?.("(display-mode: standalone)").matches === true;
+      if (!isTouchApple || !isStandalone) return;
 
       const form = document.getElementById("login-form");
       form.addEventListener("submit", (event) => {
