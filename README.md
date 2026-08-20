@@ -37,6 +37,10 @@ session, and opens the terminal in the local browser. It runs in the foreground;
 press Ctrl+C to stop it. Use `--no-open` when launching from a service or a
 headless shell.
 
+Launch Herdr Web from a regular shell or service, not from an existing Herdr
+pane. It refuses to start when `HERDR_ENV` is set instead of silently creating
+or altering a nested session.
+
 To build from source first:
 
 ```bash
@@ -130,9 +134,6 @@ Form login uses an HTTP-only, same-site Cookie signed by an
 in-memory random key. Restarting Herdr Web invalidates existing sessions.
 Credentials stay in Herdr Web and are not passed to ttyd: all `HERDR_WEB_*`
 variables are removed from the environment inherited by ttyd and Herdr.
-Outer Herdr pane identity is removed as well, while `HERDR_SESSION`,
-`HERDR_SOCKET_PATH`, and `HERDR_CONFIG_PATH` remain available so a launch from
-inside Herdr can attach to the same runtime without becoming a nested session.
 TLS key logging through `SSLKEYLOGFILE`, `NSS_KEYLOGFILE`, or Node's
 `--tls-keylog` option is not inherited by ttyd, Herdr, or their descendants.
 API keys, proxy settings, and other ordinary user environment remain intact.
