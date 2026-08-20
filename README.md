@@ -115,7 +115,7 @@ Options:
 - Long-press and drag selects terminal text; a temporary Copy button writes the
   xterm selection through Clipboard API or an HTTP-compatible copy event. If
   WebKit rejects both, the selected text is presented in a native copy field.
-- Focusing the terminal shows a compact `Esc` / `Paste` / `换行`
+- Focusing the terminal shows a compact `Esc` / `Paste` / `Enter`
   toolbar above the virtual keyboard. `Paste` reads Clipboard API when browser
   policy allows it and otherwise opens a small paste prompt for LAN HTTP.
 - A two-finger tap sends a right mouse click to Herdr.

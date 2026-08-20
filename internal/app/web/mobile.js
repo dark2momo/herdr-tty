@@ -264,7 +264,7 @@
     const actions = [
       ["Esc", () => sendTerminalInput("\x1b")],
       ["Paste", pasteFromToolbar],
-      ["换行", () => sendTerminalInput("\r")],
+      ["Enter", () => sendTerminalInput("\r")],
     ];
     for (const [label, action] of actions) {
       const button = document.createElement("button");
