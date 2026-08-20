@@ -142,6 +142,226 @@ function loadMobile({
   };
 }
 
+function loadTouchMobile({ promptValue = null, selection = "selected text" } = {}) {
+  const documentListeners = new Map();
+  const rootClasses = new Set();
+  const terminalInputs = [];
+  const terminalPastes = [];
+  let copiedText = "";
+  let selectedControl = null;
+  let document;
+
+  function createElement(tagName) {
+    const listeners = new Map();
+    const element = {
+      tagName: tagName.toUpperCase(),
+      children: [],
+      dataset: {},
+      style: {},
+      className: "",
+      hidden: false,
+      disabled: false,
+      textContent: "",
+      value: "",
+      parentNode: null,
+      classList: {
+        contains(name) {
+          return element.className.split(/\s+/).includes(name);
+        },
+      },
+      addEventListener(name, listener) {
+        const registered = listeners.get(name) || [];
+        registered.push(listener);
+        listeners.set(name, registered);
+      },
+      appendChild(child) {
+        child.parentNode = element;
+        element.children.push(child);
+        return child;
+      },
+      contains(target) {
+        return target === element || element.children.some((child) => child.contains?.(target));
+      },
+      setAttribute() {},
+      focus() {
+        document.activeElement = element;
+      },
+      select() {
+        selectedControl = element;
+      },
+      remove() {
+        if (!element.parentNode) return;
+        element.parentNode.children = element.parentNode.children.filter((child) => child !== element);
+        element.parentNode = null;
+      },
+      listeners,
+    };
+    return element;
+  }
+
+  const rootElement = createElement("html");
+  rootElement.style.setProperty = () => {};
+  rootElement.classList = {
+    contains: (name) => rootClasses.has(name),
+    toggle(name, enabled) {
+      if (enabled) rootClasses.add(name);
+      else rootClasses.delete(name);
+    },
+  };
+  const body = createElement("body");
+  const terminal = createElement("div");
+  terminal.className = "xterm";
+  const helper = createElement("textarea");
+  helper.className = "xterm-helper-textarea";
+  terminal.appendChild(helper);
+
+  function dispatchDocument(name, event) {
+    for (const listener of documentListeners.get(name) || []) listener(event);
+  }
+
+  document = {
+    documentElement: rootElement,
+    body,
+    activeElement: body,
+    createElement,
+    addEventListener(name, listener) {
+      const registered = documentListeners.get(name) || [];
+      registered.push(listener);
+      documentListeners.set(name, registered);
+    },
+    querySelector(selector) {
+      if (selector === ".xterm") return terminal;
+      if (selector === ".xterm-helper-textarea") return helper;
+      return null;
+    },
+    elementFromPoint: () => terminal,
+    getSelection: () => ({ toString: () => "" }),
+    execCommand(command) {
+      if (command !== "copy" || !selectedControl) return false;
+      copiedText = selectedControl.value;
+      return true;
+    },
+  };
+
+  const visualViewport = {
+    height: 1024,
+    width: 1366,
+    offsetTop: 0,
+    offsetLeft: 0,
+    pageTop: 0,
+    pageLeft: 0,
+    addEventListener() {},
+  };
+  const window = {
+    visualViewport,
+    innerHeight: 1024,
+    innerWidth: 1366,
+    scrollY: 0,
+    scrollX: 0,
+    isSecureContext: false,
+    addEventListener() {},
+    dispatchEvent() {},
+    matchMedia: () => ({ matches: true }),
+    setTimeout(callback) {
+      callback();
+      return 1;
+    },
+    prompt: () => promptValue,
+  };
+  window.term = {
+    input(data, wasUserInput) {
+      terminalInputs.push({ data, wasUserInput });
+    },
+    paste(data) {
+      terminalPastes.push(data);
+    },
+    getSelection: () => selection,
+    focus() {
+      helper.focus();
+    },
+  };
+
+  const context = {
+    window,
+    document,
+    navigator: {
+      userAgent: "Mozilla/5.0 (iPad) Version/26.0 Mobile/15E148 Safari/604.1",
+      platform: "iPad",
+      maxTouchPoints: 5,
+    },
+    Event: class {},
+    MutationObserver: class {
+      observe() {}
+      disconnect() {}
+    },
+    requestAnimationFrame(callback) {
+      callback();
+      return 1;
+    },
+    cancelAnimationFrame() {},
+    clearTimeout() {},
+  };
+  vm.runInNewContext(source, context, { filename: "mobile.js" });
+
+  const copyButton = terminal.children.find((child) => child.className === "herdr-web-copy-button");
+  const toolbar = body.children.find((child) => child.className === "herdr-web-input-toolbar");
+
+  return {
+    copyButton,
+    toolbar,
+    terminalInputs,
+    terminalPastes,
+    get copiedText() {
+      return copiedText;
+    },
+    focusTerminal() {
+      helper.focus();
+      dispatchDocument("focusin", { target: helper });
+    },
+    async click(element) {
+      const event = { preventDefault() {}, stopPropagation() {} };
+      for (const listener of element.listeners.get("click") || []) listener(event);
+      await Promise.resolve();
+      await Promise.resolve();
+    },
+    toolbarButton(label) {
+      return toolbar.children.find((button) => button.textContent === label);
+    },
+    rootHasClass(name) {
+      return rootClasses.has(name);
+    },
+  };
+}
+
+test("copy button writes the xterm selection on LAN HTTP", async () => {
+  const runtime = loadTouchMobile({ selection: "first line\nsecond line" });
+
+  await runtime.click(runtime.copyButton);
+
+  assert.equal(runtime.copiedText, "first line\nsecond line");
+  assert.equal(runtime.copyButton.hidden, true);
+  assert.equal(runtime.copyButton.disabled, false);
+});
+
+test("terminal focus shows input toolbar with key and paste actions", async () => {
+  const runtime = loadTouchMobile({ promptValue: "pasted text" });
+
+  runtime.focusTerminal();
+
+  assert.equal(runtime.toolbar.hidden, false);
+  assert.equal(runtime.rootHasClass("herdr-web-toolbar-visible"), true);
+  await runtime.click(runtime.toolbarButton("Esc"));
+  await runtime.click(runtime.toolbarButton("Tab"));
+  await runtime.click(runtime.toolbarButton("Paste"));
+  await runtime.click(runtime.toolbarButton("Enter"));
+  assert.deepEqual(runtime.terminalInputs, [
+    { data: "\x1b", wasUserInput: true },
+    { data: "\t", wasUserInput: true },
+    { data: "\r", wasUserInput: true },
+  ]);
+  assert.deepEqual(runtime.terminalPastes, ["pasted text"]);
+});
+
 test("iOS virtual Chinese punctuation is forwarded as non-composition input", () => {
   const runtime = loadMobile({
     userAgent: "Mozilla/5.0 (iPhone) CriOS/140.0 Mobile/15E148 Safari/604.1",

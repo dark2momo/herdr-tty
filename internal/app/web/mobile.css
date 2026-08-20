@@ -3,6 +3,7 @@
   --herdr-web-viewport-width: 100vw;
   --herdr-web-viewport-top: 0px;
   --herdr-web-viewport-left: 0px;
+  --herdr-web-toolbar-height: 48px;
   color-scheme: dark;
   background: #000;
 }
@@ -39,6 +40,12 @@
     transform-origin: top left;
   }
 
+  html.herdr-web-toolbar-visible #terminal-container {
+    height: calc(
+      var(--herdr-web-viewport-height) - var(--herdr-web-toolbar-height)
+    ) !important;
+  }
+
   .xterm {
     touch-action: none;
   }
@@ -61,5 +68,49 @@
 
   .xterm .herdr-web-copy-button[hidden] {
     display: none;
+  }
+
+  html.herdr-web-toolbar-visible .xterm .herdr-web-copy-button {
+    bottom: calc(12px + var(--herdr-web-toolbar-height));
+  }
+
+  .herdr-web-input-toolbar {
+    position: fixed;
+    top: calc(
+      var(--herdr-web-viewport-top) + var(--herdr-web-viewport-height) -
+        var(--herdr-web-toolbar-height)
+    );
+    left: var(--herdr-web-viewport-left);
+    z-index: 30;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    width: var(--herdr-web-viewport-width);
+    height: var(--herdr-web-toolbar-height);
+    padding: 4px calc(8px + env(safe-area-inset-right))
+      4px calc(8px + env(safe-area-inset-left));
+    border-top: 1px solid #ffffff24;
+    background: #11141cf2;
+    font: 600 13px/1 system-ui, sans-serif;
+  }
+
+  .herdr-web-input-toolbar[hidden] {
+    display: none;
+  }
+
+  .herdr-web-input-toolbar button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 38px;
+    border: 1px solid #ffffff2b;
+    border-radius: 7px;
+    background: #242936;
+    color: #fff;
+    font: inherit;
+    touch-action: manipulation;
+  }
+
+  .herdr-web-input-toolbar button[data-action="paste"] {
+    flex-grow: 1.35;
   }
 }

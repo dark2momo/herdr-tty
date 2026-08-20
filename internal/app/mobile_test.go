@@ -85,13 +85,22 @@ func TestMobileScriptDoesNotInterceptKeyboard(t *testing.T) {
 		"twoFingerTapDelay",
 		`sendMouse("mousedown", twoFingerX, twoFingerY, 2, 2)`,
 		`sendMouse("mousedown", startX, startY, 0, 1, true)`,
+		"window.term.getSelection",
+		"navigator.clipboard",
+		"herdr-web-input-toolbar",
 		`document.execCommand("copy")`,
 	} {
 		if !strings.Contains(script, feature) {
 			t.Fatalf("mobile script is missing %q", feature)
 		}
 	}
-	for _, feature := range []string{"--herdr-web-viewport-top", "translate3d", "background-color: #000"} {
+	for _, feature := range []string{
+		"--herdr-web-viewport-top",
+		"--herdr-web-toolbar-height",
+		"herdr-web-input-toolbar",
+		"translate3d",
+		"background-color: #000",
+	} {
 		if !strings.Contains(string(mobileCSS), feature) {
 			t.Fatalf("mobile CSS is missing %q", feature)
 		}

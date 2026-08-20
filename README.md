@@ -112,8 +112,11 @@ Options:
 ## Mobile behavior
 
 - One-finger drag scrolls the active Herdr view with light inertia.
-- Long-press and drag selects terminal text; a temporary Copy button appears
-  after the gesture.
+- Long-press and drag selects terminal text; a temporary Copy button writes the
+  xterm selection through Clipboard API or an HTTP-compatible fallback.
+- Focusing the terminal shows a compact `Esc` / `Tab` / `Paste` / `Enter`
+  toolbar above the virtual keyboard. `Paste` reads Clipboard API when browser
+  policy allows it and otherwise opens a small paste prompt for LAN HTTP.
 - A two-finger tap sends a right mouse click to Herdr.
 - The terminal follows `visualViewport` when a mobile keyboard changes the
   visible area, including iOS viewport offsets.

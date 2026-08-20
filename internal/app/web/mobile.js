@@ -163,6 +163,141 @@
   const twoFingerTapDelay = 400;
   const twoFingerTapDistance = 12;
 
+  function selectedTerminalText() {
+    if (typeof window.term?.getSelection === "function") {
+      const selection = window.term.getSelection();
+      if (selection) return selection;
+    }
+    return document.getSelection?.()?.toString() || "";
+  }
+
+  function legacyCopyText(text) {
+    const previousFocus = document.activeElement;
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.readOnly = true;
+    textarea.setAttribute("aria-hidden", "true");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-1000px";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    let copied = false;
+    try {
+      textarea.focus({ preventScroll: true });
+      textarea.select();
+      copied = document.execCommand("copy");
+    } finally {
+      textarea.remove();
+      if (previousFocus?.classList?.contains("xterm-helper-textarea")) {
+        previousFocus.focus({ preventScroll: true });
+      }
+    }
+    return copied;
+  }
+
+  async function copyText(text) {
+    if (!text) return false;
+    if (window.isSecureContext && typeof navigator.clipboard?.writeText === "function") {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        // LAN HTTP and browser permission policies can reject Clipboard API.
+      }
+    }
+    return legacyCopyText(text);
+  }
+
+  function sendTerminalInput(data) {
+    if (!data || typeof window.term?.input !== "function") return;
+    window.term.input(data, true);
+    window.term.focus?.();
+  }
+
+  async function pasteFromToolbar() {
+    let text = null;
+    if (window.isSecureContext && typeof navigator.clipboard?.readText === "function") {
+      try {
+        text = await navigator.clipboard.readText();
+      } catch {
+        // Fall back to an explicit input prompt below.
+      }
+    }
+    if (text === null && typeof window.prompt === "function") {
+      text = window.prompt("Paste text into Herdr");
+    }
+    if (text === null || text === "") {
+      window.term?.focus?.();
+      return;
+    }
+    if (typeof window.term?.paste === "function") {
+      window.term.paste(text);
+      window.term.focus?.();
+      return;
+    }
+    sendTerminalInput(text);
+  }
+
+  function createInputToolbar(terminal) {
+    const toolbar = document.createElement("div");
+    toolbar.className = "herdr-web-input-toolbar";
+    toolbar.hidden = true;
+    toolbar.setAttribute("role", "toolbar");
+    toolbar.setAttribute("aria-label", "Terminal input controls");
+
+    const actions = [
+      ["Esc", () => sendTerminalInput("\x1b")],
+      ["Tab", () => sendTerminalInput("\t")],
+      ["Paste", pasteFromToolbar],
+      ["Enter", () => sendTerminalInput("\r")],
+    ];
+    for (const [label, action] of actions) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.dataset.action = label.toLowerCase();
+      button.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      });
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void action();
+      });
+      toolbar.appendChild(button);
+    }
+    document.body.appendChild(toolbar);
+
+    function setVisible(visible) {
+      if (toolbar.hidden === !visible) return;
+      toolbar.hidden = !visible;
+      root.classList.toggle("herdr-web-toolbar-visible", visible);
+      scheduleViewportUpdate();
+    }
+
+    document.addEventListener("focusin", (event) => {
+      if (
+        event.target?.classList?.contains("xterm-helper-textarea") &&
+        terminal.contains(event.target)
+      ) {
+        setVisible(true);
+      }
+    });
+    document.addEventListener("focusout", () => {
+      window.setTimeout(() => {
+        const active = document.activeElement;
+        setVisible(
+          !!active?.classList?.contains("xterm-helper-textarea") && terminal.contains(active),
+        );
+      }, 0);
+    });
+    const active = document.activeElement;
+    if (active?.classList?.contains("xterm-helper-textarea") && terminal.contains(active)) {
+      setVisible(true);
+    }
+  }
+
   function attachTouchControls(terminal) {
     if (terminal.dataset.herdrWebTouch === "ready") return;
     terminal.dataset.herdrWebTouch = "ready";
@@ -182,10 +317,16 @@
     copyButton.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      copyButton.focus({ preventScroll: true });
-      document.execCommand("copy");
-      copyButton.hidden = true;
+      const text = selectedTerminalText();
+      copyButton.disabled = true;
+      void copyText(text).then((copied) => {
+        copyButton.disabled = false;
+        copyButton.textContent = copied ? "Copy" : "Copy failed";
+        copyButton.hidden = copied;
+      });
     });
+
+    createInputToolbar(terminal);
 
     let startX = 0;
     let startY = 0;
