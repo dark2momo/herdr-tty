@@ -287,7 +287,8 @@
     let toolbarFitFrame = 0;
 
     function resizePasteInput() {
-      pasteInput.style.height = "auto";
+      pasteInput.style.height = `${inputMinHeight}px`;
+      pasteInput.style.overflowY = "hidden";
       const contentHeight = Number(pasteInput.scrollHeight) || inputMinHeight;
       const inputHeight = Math.min(inputMaxHeight, Math.max(inputMinHeight, contentHeight));
       pasteInput.style.height = `${inputHeight}px`;

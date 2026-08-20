@@ -454,6 +454,24 @@ test("toolbar Enter pastes input text and sends return when empty", async () => 
   ]);
 });
 
+test("paste input shrinks after multiline content is removed", () => {
+  const runtime = loadTouchMobile();
+
+  runtime.focusTerminal();
+  runtime.pasteInput.value = "one\ntwo\nthree\nfour";
+  runtime.pasteInput.scrollHeight = 112;
+  runtime.trigger(runtime.pasteInput, "input");
+  assert.equal(runtime.pasteInput.style.height, "112px");
+  assert.equal(runtime.rootStyle("--herdr-web-toolbar-height"), "120px");
+
+  runtime.pasteInput.value = "one";
+  runtime.pasteInput.scrollHeight = 36;
+  runtime.trigger(runtime.pasteInput, "input");
+  assert.equal(runtime.pasteInput.style.height, "72px");
+  assert.equal(runtime.pasteInput.style.overflowY, "hidden");
+  assert.equal(runtime.rootStyle("--herdr-web-toolbar-height"), "80px");
+});
+
 test("iOS virtual Chinese punctuation is forwarded as non-composition input", () => {
   const runtime = loadMobile({
     userAgent: "Mozilla/5.0 (iPhone) CriOS/140.0 Mobile/15E148 Safari/604.1",
