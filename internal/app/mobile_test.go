@@ -80,6 +80,7 @@ func TestMobileScriptDoesNotInterceptKeyboard(t *testing.T) {
 		"beforeinput",
 		"xterm-helper-textarea",
 		`/^\p{P}+$/u`,
+		"window.term.input",
 		"contextmenu",
 		"twoFingerTapDelay",
 		`sendMouse("mousedown", twoFingerX, twoFingerY, 2, 2)`,

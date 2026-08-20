@@ -84,42 +84,72 @@
   document.addEventListener("focusout", scheduleViewportUpdate, { passive: true });
   updateViewport(true);
 
+  let pendingIOSPunctuation = null;
+
+  function isIOSVirtualPunctuation(event) {
+    return (
+      isIOS &&
+      !event.defaultPrevented &&
+      !event.isComposing &&
+      event.inputType === "insertText" &&
+      !!event.data &&
+      /^\p{P}+$/u.test(event.data) &&
+      event.target?.classList?.contains("xterm-helper-textarea") &&
+      typeof window.term?.input === "function"
+    );
+  }
+
+  function sendIOSPunctuation(data) {
+    window.term.input(data, true);
+  }
+
   document.addEventListener(
     "beforeinput",
     (event) => {
       // xterm.js #5835: iOS exposes virtual Chinese punctuation here, but its
       // keyCode 229 path can drop the corresponding terminal input.
+      if (!isIOSVirtualPunctuation(event)) return;
+
       const target = event.target;
+      pendingIOSPunctuation = {
+        data: event.data,
+        selectionEnd: target.selectionEnd,
+        selectionStart: target.selectionStart,
+        target,
+        value: target.value,
+      };
+      event.stopImmediatePropagation();
+      if (event.cancelable) {
+        event.preventDefault();
+        pendingIOSPunctuation = null;
+        sendIOSPunctuation(event.data);
+      }
+    },
+    { capture: true, passive: false },
+  );
+
+  document.addEventListener(
+    "input",
+    (event) => {
+      const pending = pendingIOSPunctuation;
       if (
-        !isIOS ||
-        event.defaultPrevented ||
-        !event.cancelable ||
-        event.isComposing ||
+        !pending ||
+        event.target !== pending.target ||
         event.inputType !== "insertText" ||
-        !event.data ||
-        !/^\p{P}+$/u.test(event.data) ||
-        !target?.classList?.contains("xterm-helper-textarea")
+        event.data !== pending.data
       ) {
         return;
       }
 
-      let replacement;
-      try {
-        replacement = new InputEvent("input", {
-          bubbles: true,
-          composed: false,
-          data: event.data,
-          inputType: "insertText",
-        });
-      } catch {
-        return;
-      }
-
-      event.preventDefault();
+      pendingIOSPunctuation = null;
       event.stopImmediatePropagation();
-      target.dispatchEvent(replacement);
+      pending.target.value = pending.value;
+      if (typeof pending.target.setSelectionRange === "function") {
+        pending.target.setSelectionRange(pending.selectionStart, pending.selectionEnd);
+      }
+      sendIOSPunctuation(pending.data);
     },
-    { capture: true, passive: false },
+    { capture: true },
   );
 
   document.addEventListener("contextmenu", (event) => event.preventDefault());

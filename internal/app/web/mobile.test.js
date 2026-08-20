@@ -46,6 +46,12 @@ function loadMobile({
       return nextTimer++;
     },
   };
+  const terminalInputs = [];
+  window.term = {
+    input(data, wasUserInput) {
+      terminalInputs.push({ data, wasUserInput });
+    },
+  };
   const document = {
     documentElement: {
       style: {
@@ -65,12 +71,6 @@ function loadMobile({
     document,
     navigator: { userAgent, platform, maxTouchPoints },
     Event: class {},
-    InputEvent: class {
-      constructor(type, init = {}) {
-        this.type = type;
-        Object.assign(this, init);
-      }
-    },
     MutationObserver: class {
       observe() {}
       disconnect() {}
@@ -87,15 +87,18 @@ function loadMobile({
 
   return {
     styles,
+    terminalInputs,
     dispatchBeforeInput(overrides = {}) {
       let prevented = false;
       let stopped = false;
-      const dispatched = [];
       const target = overrides.target || {
         classList: { contains: (name) => name === "xterm-helper-textarea" },
-        dispatchEvent(event) {
-          dispatched.push(event);
-          return true;
+        selectionEnd: 2,
+        selectionStart: 2,
+        value: "中文",
+        setSelectionRange(start, end) {
+          this.selectionStart = start;
+          this.selectionEnd = end;
         },
       };
       documentListeners.get("beforeinput")({
@@ -113,7 +116,19 @@ function loadMobile({
         },
         ...overrides,
       });
-      return { dispatched, prevented, stopped };
+      return { prevented, stopped, target };
+    },
+    dispatchInput(overrides = {}) {
+      let stopped = false;
+      documentListeners.get("input")({
+        data: "，",
+        inputType: "insertText",
+        stopImmediatePropagation() {
+          stopped = true;
+        },
+        ...overrides,
+      });
+      return { stopped };
     },
     updateViewport({ height, width = layoutWidth, top = 0, left = 0 }) {
       visualViewport.height = height;
@@ -137,18 +152,34 @@ test("iOS virtual Chinese punctuation is forwarded as non-composition input", ()
 
   assert.equal(result.prevented, true);
   assert.equal(result.stopped, true);
-  assert.equal(result.dispatched.length, 1);
-  assert.equal(result.dispatched[0].type, "input");
-  assert.equal(result.dispatched[0].data, "，。！？");
-  assert.equal(result.dispatched[0].inputType, "insertText");
-  assert.equal(result.dispatched[0].bubbles, true);
-  assert.equal(result.dispatched[0].composed, false);
+  assert.deepEqual(runtime.terminalInputs, [{ data: "，。！？", wasUserInput: true }]);
+});
+
+test("non-cancelable iOS punctuation is restored and forwarded once on input", () => {
+  const runtime = loadMobile({
+    userAgent: "Mozilla/5.0 (iPhone) Version/26.0 Mobile/15E148 Safari/604.1",
+    maxTouchPoints: 5,
+  });
+
+  const before = runtime.dispatchBeforeInput({ cancelable: false, data: "、" });
+  assert.equal(before.prevented, false);
+  assert.equal(before.stopped, true);
+  assert.deepEqual(runtime.terminalInputs, []);
+
+  before.target.value = "中文、";
+  before.target.selectionStart = before.target.selectionEnd = 3;
+  const input = runtime.dispatchInput({ data: "、", target: before.target });
+
+  assert.equal(input.stopped, true);
+  assert.equal(before.target.value, "中文");
+  assert.equal(before.target.selectionStart, 2);
+  assert.equal(before.target.selectionEnd, 2);
+  assert.deepEqual(runtime.terminalInputs, [{ data: "、", wasUserInput: true }]);
 });
 
 for (const input of [
   { name: "ordinary text", overrides: { data: "中" } },
   { name: "active composition", overrides: { isComposing: true } },
-  { name: "non-cancelable input", overrides: { cancelable: false } },
   { name: "deletion", overrides: { data: null, inputType: "deleteContentBackward" } },
   {
     name: "non-terminal input",
@@ -165,7 +196,7 @@ for (const input of [
 
     assert.equal(result.prevented, false);
     assert.equal(result.stopped, false);
-    assert.equal(result.dispatched.length, 0);
+    assert.deepEqual(runtime.terminalInputs, []);
   });
 }
 
@@ -179,7 +210,7 @@ test("non-iOS virtual keyboards keep native input handling", () => {
 
   assert.equal(result.prevented, false);
   assert.equal(result.stopped, false);
-  assert.equal(result.dispatched.length, 0);
+  assert.deepEqual(runtime.terminalInputs, []);
 });
 
 function viewportStyles(runtime) {
