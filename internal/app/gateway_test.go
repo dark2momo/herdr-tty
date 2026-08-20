@@ -63,6 +63,30 @@ func TestGatewayLoginFlow(t *testing.T) {
 	}
 }
 
+func TestLoginPageSettlesSafariKeyboardBeforeSubmit(t *testing.T) {
+	handler := newGatewayHandler(testAuthenticator(t), http.NotFoundHandler())
+	request := httptest.NewRequest(http.MethodGet, "http://terminal.test"+loginPath, nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("login status = %d", response.Code)
+	}
+	body := response.Body.String()
+	for _, expected := range []string{
+		`id="login-form"`,
+		`document.activeElement?.blur()`,
+		`window.scrollTo(0, 0)`,
+		`HTMLFormElement.prototype.submit.call(form)`,
+		`window.setTimeout`,
+		`CriOS`,
+	} {
+		if !strings.Contains(body, expected) {
+			t.Fatalf("login page is missing %q", expected)
+		}
+	}
+}
+
 func TestGatewayLocalModeSkipsLoginAndStillChecksWebSocketOrigin(t *testing.T) {
 	upstreamCalls := 0
 	handler := newGatewayHandler(nil, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

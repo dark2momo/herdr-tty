@@ -49,7 +49,7 @@ var loginTemplate = template.Must(template.New("login").Parse(`<!doctype html>
     <h1>Herdr Web</h1>
     <p>Sign in to continue to your terminal.</p>
     {{if .Error}}<div class="error" role="alert">{{.Error}}</div>{{end}}
-    <form method="post" action="/_herdr/login">
+    <form id="login-form" method="post" action="/_herdr/login">
       <label for="username">Username</label>
       <input id="username" name="username" autocomplete="username" autocapitalize="none" required autofocus>
       <label for="password">Password</label>
@@ -57,6 +57,28 @@ var loginTemplate = template.Must(template.New("login").Parse(`<!doctype html>
       <button type="submit">Sign in</button>
     </form>
   </main>
+  <script>
+    (() => {
+      const userAgent = navigator.userAgent;
+      const isTouchApple =
+        /\b(iPad|iPhone|iPod)\b/.test(userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      const isSafari =
+        /\bSafari\//.test(userAgent) && !/\b(CriOS|FxiOS|EdgiOS)\//.test(userAgent);
+      if (!isTouchApple || !isSafari) return;
+
+      const form = document.getElementById("login-form");
+      form.addEventListener("submit", (event) => {
+        if (form.dataset.submitting === "true") return;
+        event.preventDefault();
+        form.dataset.submitting = "true";
+        form.querySelector('button[type="submit"]').disabled = true;
+        document.activeElement?.blur();
+        window.scrollTo(0, 0);
+        window.setTimeout(() => HTMLFormElement.prototype.submit.call(form), 300);
+      });
+    })();
+  </script>
 </body>
 </html>`))
 
