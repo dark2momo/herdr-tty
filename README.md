@@ -64,6 +64,9 @@ Options:
   visible area, including iOS viewport offsets.
 - On iPad Chrome, a small stale focus inset is ignored after the keyboard
   closes, while an open keyboard still resizes the terminal above it.
+- iOS virtual Chinese keyboards forward punctuation through a narrow
+  `beforeinput` fallback for xterm.js; ordinary text, active composition,
+  desktop keyboards, and Herdr shortcuts keep their native paths.
 - The browser context menu is suppressed inside the web app.
 - No `keydown`, `keyup`, or `keypress` handler is installed, so Herdr keyboard
   shortcuts continue through ttyd unchanged.

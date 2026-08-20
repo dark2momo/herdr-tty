@@ -3,6 +3,9 @@
 
   const root = document.documentElement;
   const viewport = window.visualViewport;
+  const isIOS =
+    /\b(iPad|iPhone|iPod)\b/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const isIPad =
     /\biPad\b/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -80,6 +83,44 @@
   document.addEventListener("focusin", scheduleViewportUpdate, { passive: true });
   document.addEventListener("focusout", scheduleViewportUpdate, { passive: true });
   updateViewport(true);
+
+  document.addEventListener(
+    "beforeinput",
+    (event) => {
+      // xterm.js #5835: iOS exposes virtual Chinese punctuation here, but its
+      // keyCode 229 path can drop the corresponding terminal input.
+      const target = event.target;
+      if (
+        !isIOS ||
+        event.defaultPrevented ||
+        !event.cancelable ||
+        event.isComposing ||
+        event.inputType !== "insertText" ||
+        !event.data ||
+        !/^\p{P}+$/u.test(event.data) ||
+        !target?.classList?.contains("xterm-helper-textarea")
+      ) {
+        return;
+      }
+
+      let replacement;
+      try {
+        replacement = new InputEvent("input", {
+          bubbles: true,
+          composed: false,
+          data: event.data,
+          inputType: "insertText",
+        });
+      } catch {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      target.dispatchEvent(replacement);
+    },
+    { capture: true, passive: false },
+  );
 
   document.addEventListener("contextmenu", (event) => event.preventDefault());
 

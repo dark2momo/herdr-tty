@@ -65,6 +65,12 @@ function loadMobile({
     document,
     navigator: { userAgent, platform, maxTouchPoints },
     Event: class {},
+    InputEvent: class {
+      constructor(type, init = {}) {
+        this.type = type;
+        Object.assign(this, init);
+      }
+    },
     MutationObserver: class {
       observe() {}
       disconnect() {}
@@ -81,6 +87,34 @@ function loadMobile({
 
   return {
     styles,
+    dispatchBeforeInput(overrides = {}) {
+      let prevented = false;
+      let stopped = false;
+      const dispatched = [];
+      const target = overrides.target || {
+        classList: { contains: (name) => name === "xterm-helper-textarea" },
+        dispatchEvent(event) {
+          dispatched.push(event);
+          return true;
+        },
+      };
+      documentListeners.get("beforeinput")({
+        cancelable: true,
+        data: "，",
+        defaultPrevented: false,
+        inputType: "insertText",
+        isComposing: false,
+        target,
+        preventDefault() {
+          prevented = true;
+        },
+        stopImmediatePropagation() {
+          stopped = true;
+        },
+        ...overrides,
+      });
+      return { dispatched, prevented, stopped };
+    },
     updateViewport({ height, width = layoutWidth, top = 0, left = 0 }) {
       visualViewport.height = height;
       visualViewport.width = width;
@@ -92,6 +126,61 @@ function loadMobile({
     },
   };
 }
+
+test("iOS virtual Chinese punctuation is forwarded as non-composition input", () => {
+  const runtime = loadMobile({
+    userAgent: "Mozilla/5.0 (iPhone) CriOS/140.0 Mobile/15E148 Safari/604.1",
+    maxTouchPoints: 5,
+  });
+
+  const result = runtime.dispatchBeforeInput({ data: "，。！？" });
+
+  assert.equal(result.prevented, true);
+  assert.equal(result.stopped, true);
+  assert.equal(result.dispatched.length, 1);
+  assert.equal(result.dispatched[0].type, "input");
+  assert.equal(result.dispatched[0].data, "，。！？");
+  assert.equal(result.dispatched[0].inputType, "insertText");
+  assert.equal(result.dispatched[0].bubbles, true);
+  assert.equal(result.dispatched[0].composed, false);
+});
+
+for (const input of [
+  { name: "ordinary text", overrides: { data: "中" } },
+  { name: "active composition", overrides: { isComposing: true } },
+  { name: "non-cancelable input", overrides: { cancelable: false } },
+  { name: "deletion", overrides: { data: null, inputType: "deleteContentBackward" } },
+  {
+    name: "non-terminal input",
+    overrides: { target: { classList: { contains: () => false }, dispatchEvent() {} } },
+  },
+]) {
+  test(`iOS punctuation fallback ignores ${input.name}`, () => {
+    const runtime = loadMobile({
+      userAgent: "Mozilla/5.0 (iPhone) Version/26.0 Mobile/15E148 Safari/604.1",
+      maxTouchPoints: 5,
+    });
+
+    const result = runtime.dispatchBeforeInput(input.overrides);
+
+    assert.equal(result.prevented, false);
+    assert.equal(result.stopped, false);
+    assert.equal(result.dispatched.length, 0);
+  });
+}
+
+test("non-iOS virtual keyboards keep native input handling", () => {
+  const runtime = loadMobile({
+    userAgent: "Mozilla/5.0 (Linux; Android 16) Chrome/140.0 Mobile Safari/537.36",
+    maxTouchPoints: 5,
+  });
+
+  const result = runtime.dispatchBeforeInput({ data: "，" });
+
+  assert.equal(result.prevented, false);
+  assert.equal(result.stopped, false);
+  assert.equal(result.dispatched.length, 0);
+});
 
 function viewportStyles(runtime) {
   return {
