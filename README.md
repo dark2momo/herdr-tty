@@ -115,9 +115,13 @@ Options:
 - Long-press and drag selects terminal text; a temporary Copy button writes the
   xterm selection through Clipboard API or an HTTP-compatible copy event. If
   WebKit rejects both, the selected text is presented in a native copy field.
-- Focusing the terminal shows an expandable paste input with stacked Escape and
-  Enter icon controls above the virtual keyboard. Enter pastes non-empty input
-  and then sends a terminal return; with empty input, it sends only the return.
+- Focusing the terminal shows an expandable paste input with stacked Esc and
+  Input controls above the virtual keyboard. Input pastes non-empty text and
+  then sends a terminal return; with empty text, it sends only the return. The
+  virtual keyboard's Return key remains the native way to add a line break.
+- At ttyd's reconnect prompt, Input reconnects through ttyd's native Enter-key
+  path without clearing the draft. Both actions pause while reconnecting, and
+  the preserved draft requires a second Input tap after the connection returns.
 - A two-finger tap sends a right mouse click to Herdr.
 - The terminal follows `visualViewport` when a mobile keyboard changes the
   visible area, including iOS viewport offsets.
@@ -128,8 +132,9 @@ Options:
   text, active composition, desktop keyboards, and Herdr shortcuts keep their
   native paths.
 - The browser context menu is suppressed inside the web app.
-- No `keydown`, `keyup`, or `keypress` handler is installed, so Herdr keyboard
-  shortcuts continue through ttyd unchanged.
+- No global `keydown`, `keyup`, or `keypress` handler is installed, so Herdr
+  keyboard shortcuts continue through ttyd unchanged. A synthetic Enter key is
+  dispatched only to ttyd's hidden input when its reconnect prompt is visible.
 
 ## Security
 

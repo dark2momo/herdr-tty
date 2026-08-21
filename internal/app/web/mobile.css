@@ -146,6 +146,11 @@
     box-sizing: border-box;
     width: 52px;
     padding: 0;
+    font-size: 11px;
+  }
+
+  .herdr-web-toolbar-actions button:disabled {
+    opacity: 0.42;
   }
 
   .herdr-web-toolbar-actions svg {

@@ -61,9 +61,9 @@ func TestMobileAssetsRequireAuthentication(t *testing.T) {
 
 func TestMobileScriptDoesNotInterceptKeyboard(t *testing.T) {
 	script := string(mobileJavaScript)
-	for _, event := range []string{"keydown", "keyup", "keypress"} {
-		if strings.Contains(script, event) {
-			t.Fatalf("mobile script unexpectedly contains %q", event)
+	for _, listener := range []string{`addEventListener("keydown"`, `addEventListener("keyup"`, `addEventListener("keypress"`} {
+		if strings.Contains(script, listener) {
+			t.Fatalf("mobile script unexpectedly contains %q", listener)
 		}
 	}
 	for _, feature := range []string{
@@ -89,6 +89,8 @@ func TestMobileScriptDoesNotInterceptKeyboard(t *testing.T) {
 		"navigator.clipboard",
 		"herdr-web-input-toolbar",
 		`document.execCommand("copy")`,
+		`new KeyboardEvent("keydown"`,
+		"Press\\s+.+\\s+to\\s+Reconnect",
 	} {
 		if !strings.Contains(script, feature) {
 			t.Fatalf("mobile script is missing %q", feature)

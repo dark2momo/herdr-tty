@@ -246,20 +246,13 @@
     toolbar.setAttribute("role", "toolbar");
     toolbar.setAttribute("aria-label", "Terminal input controls");
 
-    const actionIcons = {
-      enter:
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 5v6a5 5 0 0 1-5 5H5"/><path d="m9 12-4 4 4 4"/></svg>',
-      escape:
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>',
-    };
+    const reconnectIcon =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5"/><path d="M19 11a8 8 0 1 0 .4 5"/></svg>';
 
     function appendButton(parent, action, name) {
       const button = document.createElement("button");
       button.type = "button";
-      button.innerHTML = actionIcons[name];
       button.dataset.action = name;
-      button.setAttribute("aria-label", name === "escape" ? "Escape" : "Enter");
-      button.setAttribute("title", name === "escape" ? "Escape" : "Enter");
       button.addEventListener("pointerdown", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -278,7 +271,7 @@
     pasteInput.rows = 1;
     pasteInput.placeholder = "Paste or type";
     pasteInput.setAttribute("aria-label", "Text to paste into terminal");
-    pasteInput.setAttribute("enterkeyhint", "send");
+    pasteInput.setAttribute("enterkeyhint", "enter");
     toolbar.appendChild(pasteInput);
 
     const inputMinHeight = 72;
@@ -308,6 +301,12 @@
     pasteInput.addEventListener("input", resizePasteInput);
 
     function submitPasteInput() {
+      const state = updateConnectionState();
+      if (state === "reconnect-required") {
+        reconnectTerminal();
+        return;
+      }
+      if (state !== "connected") return;
       if (pasteInput.value !== "") {
         const text = pasteInput.value;
         pasteTerminalText(text);
@@ -321,10 +320,90 @@
 
     const actions = document.createElement("div");
     actions.className = "herdr-web-toolbar-actions";
-    appendButton(actions, () => sendTerminalInput("\x1b"), "escape");
-    appendButton(actions, submitPasteInput, "enter");
+    const escapeButton = appendButton(
+      actions,
+      () => {
+        if (updateConnectionState() === "connected") sendTerminalInput("\x1b");
+      },
+      "escape",
+    );
+    const inputButton = appendButton(actions, submitPasteInput, "input");
     toolbar.appendChild(actions);
     document.body.appendChild(toolbar);
+
+    let connectionState = "connected";
+
+    function overlayConnectionState() {
+      for (const child of terminal.children) {
+        const message = child.textContent?.trim() || "";
+        if (/^Reconnecting(?:\.\.\.)?$/i.test(message)) return "reconnecting";
+        if (
+          message === "Connection Closed" ||
+          /^Press\s+.+\s+to\s+Reconnect$/i.test(message)
+        ) {
+          return "reconnect-required";
+        }
+      }
+      return "connected";
+    }
+
+    function renderConnectionState(state) {
+      connectionState = state;
+      toolbar.dataset.connectionState = state;
+      escapeButton.disabled = state !== "connected";
+      inputButton.disabled = state === "reconnecting";
+
+      escapeButton.innerHTML = "";
+      escapeButton.textContent = "Esc";
+      escapeButton.setAttribute("aria-label", "Escape");
+      escapeButton.setAttribute("title", "Escape");
+      if (state === "reconnect-required" || state === "reconnecting") {
+        inputButton.innerHTML = reconnectIcon;
+        inputButton.setAttribute(
+          "aria-label",
+          state === "reconnecting" ? "Reconnecting" : "Reconnect",
+        );
+        inputButton.setAttribute(
+          "title",
+          state === "reconnecting" ? "Reconnecting" : "Reconnect",
+        );
+      } else {
+        inputButton.innerHTML = "";
+        inputButton.textContent = "Input";
+        inputButton.setAttribute("aria-label", "Input text");
+        inputButton.setAttribute("title", "Input");
+      }
+    }
+
+    function updateConnectionState() {
+      const state = overlayConnectionState();
+      if (state !== connectionState) renderConnectionState(state);
+      return state;
+    }
+
+    function reconnectTerminal() {
+      const helper = terminal.querySelector?.(".xterm-helper-textarea");
+      if (!helper) return;
+      renderConnectionState("reconnecting");
+      helper.focus({ preventScroll: true });
+      helper.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          code: "Enter",
+          key: "Enter",
+          keyCode: 13,
+          which: 13,
+        }),
+      );
+    }
+
+    renderConnectionState(overlayConnectionState());
+    new MutationObserver(updateConnectionState).observe(terminal, {
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
     resizePasteInput();
 
     function setVisible(visible) {
