@@ -153,7 +153,9 @@ function loadTouchMobile({
   const terminalInputs = [];
   const terminalPastes = [];
   const terminalEvents = [];
+  const keyboardEvents = [];
   const prompts = [];
+  const mutationObservers = [];
   let currentSelection = selection;
   let copiedText = "";
   let selectedControl = null;
@@ -166,7 +168,9 @@ function loadTouchMobile({
       children: [],
       dataset: {},
       style: {},
+      attributes: new Map(),
       className: "",
+      innerHTML: "",
       hidden: false,
       disabled: false,
       textContent: "",
@@ -190,7 +194,26 @@ function loadTouchMobile({
       contains(target) {
         return target === element || element.children.some((child) => child.contains?.(target));
       },
-      setAttribute() {},
+      querySelector(selector) {
+        const className = selector.startsWith(".") ? selector.slice(1) : "";
+        for (const child of element.children) {
+          if (className && child.classList?.contains(className)) return child;
+          const nested = child.querySelector?.(selector);
+          if (nested) return nested;
+        }
+        return null;
+      },
+      setAttribute(name, value) {
+        element.attributes.set(name, String(value));
+      },
+      getAttribute(name) {
+        return element.attributes.get(name) || null;
+      },
+      dispatchEvent(event) {
+        if (element === helper) keyboardEvents.push(event);
+        for (const listener of listeners.get(event.type) || []) listener(event);
+        return !event.defaultPrevented;
+      },
       focus() {
         document.activeElement = element;
       },
@@ -318,7 +341,17 @@ function loadTouchMobile({
       maxTouchPoints: 5,
     },
     Event: class {},
+    KeyboardEvent: class {
+      constructor(type, init) {
+        this.type = type;
+        Object.assign(this, init);
+      }
+    },
     MutationObserver: class {
+      constructor(callback) {
+        this.callback = callback;
+        mutationObservers.push(this);
+      }
       observe() {}
       disconnect() {}
     },
@@ -340,6 +373,7 @@ function loadTouchMobile({
     terminalInputs,
     terminalPastes,
     terminalEvents,
+    keyboardEvents,
     prompts,
     get copiedText() {
       return copiedText;
@@ -356,6 +390,7 @@ function loadTouchMobile({
       dispatchDocument("focusin", { target: input });
     },
     async click(element) {
+      if (element.disabled) return;
       const event = { preventDefault() {}, stopPropagation() {} };
       for (const listener of element.listeners.get("click") || []) listener(event);
       await Promise.resolve();
@@ -367,6 +402,18 @@ function loadTouchMobile({
     },
     setSelection(value) {
       currentSelection = value;
+    },
+    setConnectionOverlay(message) {
+      let overlay = terminal.children.find(
+        (child) => child.dataset.herdrWebTest === "connection-overlay",
+      );
+      if (!overlay) {
+        overlay = createElement("div");
+        overlay.dataset.herdrWebTest = "connection-overlay";
+        terminal.appendChild(overlay);
+      }
+      overlay.textContent = message;
+      for (const observer of mutationObservers) observer.callback([]);
     },
     toolbarButton(name) {
       const actions = toolbar.children.find(
@@ -417,7 +464,7 @@ test("copy button offers a native manual field when WebKit rejects programmatic 
   assert.equal(runtime.copyButton.disabled, false);
 });
 
-test("toolbar Enter pastes input text and sends return when empty", async () => {
+test("toolbar Input pastes input text and sends return when empty", async () => {
   const runtime = loadTouchMobile();
 
   runtime.focusTerminal();
@@ -426,8 +473,9 @@ test("toolbar Enter pastes input text and sends return when empty", async () => 
   assert.equal(runtime.rootHasClass("herdr-web-toolbar-visible"), true);
   runtime.focusPasteInput();
   assert.equal(runtime.toolbar.hidden, false);
-  assert.match(runtime.toolbarButton("escape").innerHTML, /<svg/);
-  assert.match(runtime.toolbarButton("enter").innerHTML, /<svg/);
+  assert.equal(runtime.toolbarButton("escape").textContent, "Esc");
+  assert.equal(runtime.toolbarButton("input").textContent, "Input");
+  assert.equal(runtime.pasteInput.getAttribute("enterkeyhint"), "enter");
   assert.equal(runtime.pasteInput.style.height, "72px");
   assert.equal(runtime.rootStyle("--herdr-web-toolbar-height"), "80px");
   await runtime.click(runtime.toolbarButton("escape"));
@@ -437,9 +485,9 @@ test("toolbar Enter pastes input text and sends return when empty", async () => 
   assert.equal(runtime.pasteInput.style.height, "128px");
   assert.equal(runtime.pasteInput.style.overflowY, "auto");
   assert.equal(runtime.rootStyle("--herdr-web-toolbar-height"), "136px");
-  await runtime.click(runtime.toolbarButton("enter"));
+  await runtime.click(runtime.toolbarButton("input"));
   assert.equal(runtime.pasteInput.value, "");
-  await runtime.click(runtime.toolbarButton("enter"));
+  await runtime.click(runtime.toolbarButton("input"));
   assert.deepEqual(runtime.terminalInputs, [
     { data: "\x1b", wasUserInput: true },
     { data: "\r", wasUserInput: true },
@@ -452,6 +500,59 @@ test("toolbar Enter pastes input text and sends return when empty", async () => 
     { data: "\r", type: "input" },
     { data: "\r", type: "input" },
   ]);
+});
+
+test("reconnect input dispatches ttyd Enter and preserves the draft", async () => {
+  const runtime = loadTouchMobile();
+
+  runtime.focusTerminal();
+  runtime.pasteInput.value = "keep this command";
+  runtime.setConnectionOverlay("Press ⏎ to Reconnect");
+
+  const escape = runtime.toolbarButton("escape");
+  const input = runtime.toolbarButton("input");
+  assert.equal(escape.disabled, true);
+  assert.equal(input.disabled, false);
+  assert.equal(input.getAttribute("aria-label"), "Reconnect");
+  assert.match(input.innerHTML, /<svg/);
+
+  await runtime.click(escape);
+  await runtime.click(input);
+
+  assert.equal(runtime.pasteInput.value, "keep this command");
+  assert.deepEqual(runtime.terminalInputs, []);
+  assert.deepEqual(runtime.terminalPastes, []);
+  assert.equal(runtime.keyboardEvents.length, 1);
+  assert.equal(runtime.keyboardEvents[0].type, "keydown");
+  assert.equal(runtime.keyboardEvents[0].key, "Enter");
+  assert.equal(runtime.keyboardEvents[0].code, "Enter");
+  assert.equal(input.disabled, true);
+  assert.equal(input.getAttribute("aria-label"), "Reconnecting");
+
+  runtime.setConnectionOverlay("Reconnected");
+  assert.equal(escape.disabled, false);
+  assert.equal(input.disabled, false);
+  assert.equal(input.textContent, "Input");
+
+  await runtime.click(input);
+  assert.equal(runtime.pasteInput.value, "");
+  assert.deepEqual(runtime.terminalPastes, ["keep this command"]);
+  assert.deepEqual(runtime.terminalInputs, [{ data: "\r", wasUserInput: true }]);
+});
+
+test("reconnecting disables terminal actions without disabling draft editing", async () => {
+  const runtime = loadTouchMobile();
+
+  runtime.focusTerminal();
+  runtime.pasteInput.value = "editable draft";
+  runtime.setConnectionOverlay("Reconnecting...");
+
+  assert.equal(runtime.toolbarButton("escape").disabled, true);
+  assert.equal(runtime.toolbarButton("input").disabled, true);
+  assert.equal(runtime.pasteInput.disabled, false);
+  await runtime.click(runtime.toolbarButton("input"));
+  assert.equal(runtime.pasteInput.value, "editable draft");
+  assert.deepEqual(runtime.terminalEvents, []);
 });
 
 test("paste input shrinks after multiline content is removed", () => {
