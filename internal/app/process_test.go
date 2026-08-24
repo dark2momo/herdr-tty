@@ -9,10 +9,13 @@ import (
 func TestChildEnvironmentRemovesCredentialsAndTLSKeyLogs(t *testing.T) {
 	environment := []string{
 		"PATH=/usr/bin",
-		"HERDR_WEB_USERNAME=alice",
-		"HERDR_WEB_PASSWORD=secret",
-		"HERDR_WEB_FUTURE_SECRET=future",
-		"herdr_web_mixed_case=hidden",
+		"HERDR_TTY_USERNAME=alice",
+		"HERDR_TTY_PASSWORD=secret",
+		"HERDR_TTY_FUTURE_SECRET=future",
+		"herdr_tty_mixed_case=hidden",
+		"HERDR_WEB_USERNAME=legacy-alice",
+		"HERDR_WEB_PASSWORD=legacy-secret",
+		"herdr_web_mixed_case=legacy-hidden",
 		"HERDR_ENV=1",
 		"HERDR_BIN_PATH=/usr/local/bin/herdr",
 		"HERDR_WORKSPACE_ID=workspace-1",
@@ -71,7 +74,7 @@ func TestTtydCommandUsesCleanEnvironment(t *testing.T) {
 		context.Background(),
 		"ttyd",
 		[]string{"--version"},
-		[]string{"PATH=/usr/bin", "HERDR_WEB_PASSWORD=secret"},
+		[]string{"PATH=/usr/bin", "HERDR_TTY_PASSWORD=secret", "HERDR_WEB_PASSWORD=legacy-secret"},
 	)
 	if !reflect.DeepEqual(command.Env, []string{"PATH=/usr/bin"}) {
 		t.Fatalf("command.Env = %#v", command.Env)

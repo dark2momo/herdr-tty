@@ -46,10 +46,10 @@
     const metrics = `${width}:${height}:${left}:${top}`;
     if (metrics !== lastViewportMetrics) {
       lastViewportMetrics = metrics;
-      root.style.setProperty("--herdr-web-viewport-height", `${height}px`);
-      root.style.setProperty("--herdr-web-viewport-width", `${width}px`);
-      root.style.setProperty("--herdr-web-viewport-top", `${top}px`);
-      root.style.setProperty("--herdr-web-viewport-left", `${left}px`);
+      root.style.setProperty("--herdr-tty-viewport-height", `${height}px`);
+      root.style.setProperty("--herdr-tty-viewport-width", `${width}px`);
+      root.style.setProperty("--herdr-tty-viewport-top", `${top}px`);
+      root.style.setProperty("--herdr-tty-viewport-left", `${left}px`);
       forceFit = true;
     }
     if (forceFit) notifyTerminalResize();
@@ -241,7 +241,7 @@
 
   function createInputToolbar(terminal) {
     const toolbar = document.createElement("div");
-    toolbar.className = "herdr-web-input-toolbar";
+    toolbar.className = "herdr-tty-input-toolbar";
     toolbar.hidden = true;
     toolbar.setAttribute("role", "toolbar");
     toolbar.setAttribute("aria-label", "Terminal input controls");
@@ -267,7 +267,7 @@
     }
 
     const pasteInput = document.createElement("textarea");
-    pasteInput.className = "herdr-web-paste-input";
+    pasteInput.className = "herdr-tty-paste-input";
     pasteInput.rows = 1;
     pasteInput.placeholder = "Paste or type";
     pasteInput.setAttribute("aria-label", "Text to paste into terminal");
@@ -287,7 +287,7 @@
       pasteInput.style.height = `${inputHeight}px`;
       pasteInput.style.overflowY = contentHeight > inputMaxHeight ? "auto" : "hidden";
       root.style.setProperty(
-        "--herdr-web-toolbar-height",
+        "--herdr-tty-toolbar-height",
         `${inputHeight + toolbarPaddingHeight}px`,
       );
       if (toolbar.hidden) return;
@@ -319,7 +319,7 @@
     }
 
     const actions = document.createElement("div");
-    actions.className = "herdr-web-toolbar-actions";
+    actions.className = "herdr-tty-toolbar-actions";
     const escapeButton = appendButton(
       actions,
       () => {
@@ -409,7 +409,7 @@
     function setVisible(visible) {
       if (toolbar.hidden === !visible) return;
       toolbar.hidden = !visible;
-      root.classList.toggle("herdr-web-toolbar-visible", visible);
+      root.classList.toggle("herdr-tty-toolbar-visible", visible);
       scheduleViewportUpdate();
     }
 
@@ -448,7 +448,7 @@
 
     const copyButton = document.createElement("button");
     copyButton.type = "button";
-    copyButton.className = "herdr-web-copy-button";
+    copyButton.className = "herdr-tty-copy-button";
     copyButton.textContent = "Copy";
     copyButton.hidden = true;
     copyButton.setAttribute("aria-label", "Copy terminal selection");

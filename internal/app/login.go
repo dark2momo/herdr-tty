@@ -19,7 +19,7 @@ import (
 const (
 	loginPath  = "/_herdr/login"
 	logoutPath = "/_herdr/logout"
-	cookieName = "herdr_web_session"
+	cookieName = "herdr_tty_session"
 )
 
 var loginTemplate = template.Must(template.New("login").Parse(`<!doctype html>
@@ -28,7 +28,7 @@ var loginTemplate = template.Must(template.New("login").Parse(`<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="color-scheme" content="dark">
-  <title>Herdr Web</title>
+  <title>HerdrTTY</title>
   <style>
     :root { color-scheme: dark; font: 16px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
     * { box-sizing: border-box; }
@@ -46,7 +46,7 @@ var loginTemplate = template.Must(template.New("login").Parse(`<!doctype html>
 </head>
 <body>
   <main>
-    <h1>Herdr Web</h1>
+    <h1>HerdrTTY</h1>
     <p>Sign in to continue to your terminal.</p>
     {{if .Error}}<div class="error" role="alert">{{.Error}}</div>{{end}}
     <form id="login-form" method="post" action="/_herdr/login">

@@ -14,9 +14,11 @@ import (
 )
 
 const (
-	usernameEnv = "HERDR_WEB_USERNAME"
-	passwordEnv = "HERDR_WEB_PASSWORD"
-	herdrEnv    = "HERDR_ENV"
+	usernameEnv       = "HERDR_TTY_USERNAME"
+	passwordEnv       = "HERDR_TTY_PASSWORD"
+	legacyUsernameEnv = "HERDR_WEB_USERNAME"
+	legacyPasswordEnv = "HERDR_WEB_PASSWORD"
+	herdrEnv          = "HERDR_ENV"
 )
 
 type Config struct {
@@ -52,7 +54,7 @@ type getwdFunc func() (string, error)
 
 func ParseConfig(args []string, getenv getenvFunc, getwd getwdFunc) (Config, error) {
 	if getenv(herdrEnv) != "" {
-		return Config{}, errors.New("refusing to start inside Herdr: HERDR_ENV is set; launch herdr-web from a regular shell or service")
+		return Config{}, errors.New("refusing to start inside Herdr: HERDR_ENV is set; launch herdr-tty from a regular shell or service")
 	}
 
 	workingDirectory, err := getwd()
@@ -84,7 +86,7 @@ func ParseConfig(args []string, getenv getenvFunc, getwd getwdFunc) (Config, err
 		}
 	}
 
-	flags := flag.NewFlagSet("herdr-web", flag.ContinueOnError)
+	flags := flag.NewFlagSet("herdr-tty", flag.ContinueOnError)
 	flags.SetOutput(new(strings.Builder))
 	parsedConfigPath := configPath
 	openBrowser := false
@@ -124,8 +126,7 @@ func ParseConfig(args []string, getenv getenvFunc, getwd getwdFunc) (Config, err
 	if openBrowser && noOpenBrowser {
 		return Config{}, errors.New("--open and --no-open cannot be used together")
 	}
-	config.Username = getenv(usernameEnv)
-	config.Password = getenv(passwordEnv)
+	config.Username, config.Password = credentialsFromEnvironment(getenv)
 	if err := config.resolveAuthMode(); err != nil {
 		return Config{}, err
 	}
@@ -144,6 +145,15 @@ func ParseConfig(args []string, getenv getenvFunc, getwd getwdFunc) (Config, err
 		return Config{}, err
 	}
 	return config, nil
+}
+
+func credentialsFromEnvironment(getenv getenvFunc) (string, string) {
+	username := getenv(usernameEnv)
+	password := getenv(passwordEnv)
+	if username != "" || password != "" {
+		return username, password
+	}
+	return getenv(legacyUsernameEnv), getenv(legacyPasswordEnv)
 }
 
 func configPathFromArgs(args []string) (string, error) {

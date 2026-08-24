@@ -5,7 +5,7 @@ export GOWORK
 
 build:
 	mkdir -p bin
-	go build -trimpath -ldflags="-s -w" -o bin/herdr-web ./cmd/herdr-web
+	go build -trimpath -ldflags="-s -w" -o bin/herdr-tty ./cmd/herdr-tty
 
 test:
 	go test ./...

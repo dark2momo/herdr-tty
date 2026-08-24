@@ -364,8 +364,8 @@ function loadTouchMobile({
   };
   vm.runInNewContext(source, context, { filename: "mobile.js" });
 
-  const copyButton = terminal.children.find((child) => child.className === "herdr-web-copy-button");
-  const toolbar = body.children.find((child) => child.className === "herdr-web-input-toolbar");
+  const copyButton = terminal.children.find((child) => child.className === "herdr-tty-copy-button");
+  const toolbar = body.children.find((child) => child.className === "herdr-tty-input-toolbar");
 
   return {
     copyButton,
@@ -384,7 +384,7 @@ function loadTouchMobile({
     },
     focusPasteInput() {
       const input = toolbar.children.find(
-        (child) => child.className === "herdr-web-paste-input",
+        (child) => child.className === "herdr-tty-paste-input",
       );
       input.focus();
       dispatchDocument("focusin", { target: input });
@@ -417,12 +417,12 @@ function loadTouchMobile({
     },
     toolbarButton(name) {
       const actions = toolbar.children.find(
-        (child) => child.className === "herdr-web-toolbar-actions",
+        (child) => child.className === "herdr-tty-toolbar-actions",
       );
       return actions.children.find((button) => button.dataset.action === name);
     },
     get pasteInput() {
-      return toolbar.children.find((child) => child.className === "herdr-web-paste-input");
+      return toolbar.children.find((child) => child.className === "herdr-tty-paste-input");
     },
     rootHasClass(name) {
       return rootClasses.has(name);
@@ -470,21 +470,21 @@ test("toolbar Input pastes input text and sends return when empty", async () => 
   runtime.focusTerminal();
 
   assert.equal(runtime.toolbar.hidden, false);
-  assert.equal(runtime.rootHasClass("herdr-web-toolbar-visible"), true);
+  assert.equal(runtime.rootHasClass("herdr-tty-toolbar-visible"), true);
   runtime.focusPasteInput();
   assert.equal(runtime.toolbar.hidden, false);
   assert.equal(runtime.toolbarButton("escape").textContent, "Esc");
   assert.equal(runtime.toolbarButton("input").textContent, "Input");
   assert.equal(runtime.pasteInput.getAttribute("enterkeyhint"), "enter");
   assert.equal(runtime.pasteInput.style.height, "72px");
-  assert.equal(runtime.rootStyle("--herdr-web-toolbar-height"), "80px");
+  assert.equal(runtime.rootStyle("--herdr-tty-toolbar-height"), "80px");
   await runtime.click(runtime.toolbarButton("escape"));
   runtime.pasteInput.value = "first line\nsecond line";
   runtime.pasteInput.scrollHeight = 160;
   runtime.trigger(runtime.pasteInput, "input");
   assert.equal(runtime.pasteInput.style.height, "128px");
   assert.equal(runtime.pasteInput.style.overflowY, "auto");
-  assert.equal(runtime.rootStyle("--herdr-web-toolbar-height"), "136px");
+  assert.equal(runtime.rootStyle("--herdr-tty-toolbar-height"), "136px");
   await runtime.click(runtime.toolbarButton("input"));
   assert.equal(runtime.pasteInput.value, "");
   await runtime.click(runtime.toolbarButton("input"));
@@ -563,14 +563,14 @@ test("paste input shrinks after multiline content is removed", () => {
   runtime.pasteInput.scrollHeight = 112;
   runtime.trigger(runtime.pasteInput, "input");
   assert.equal(runtime.pasteInput.style.height, "112px");
-  assert.equal(runtime.rootStyle("--herdr-web-toolbar-height"), "120px");
+  assert.equal(runtime.rootStyle("--herdr-tty-toolbar-height"), "120px");
 
   runtime.pasteInput.value = "one";
   runtime.pasteInput.scrollHeight = 36;
   runtime.trigger(runtime.pasteInput, "input");
   assert.equal(runtime.pasteInput.style.height, "72px");
   assert.equal(runtime.pasteInput.style.overflowY, "hidden");
-  assert.equal(runtime.rootStyle("--herdr-web-toolbar-height"), "80px");
+  assert.equal(runtime.rootStyle("--herdr-tty-toolbar-height"), "80px");
 });
 
 test("iOS virtual Chinese punctuation is forwarded as non-composition input", () => {
@@ -646,10 +646,10 @@ test("non-iOS virtual keyboards keep native input handling", () => {
 
 function viewportStyles(runtime) {
   return {
-    height: runtime.styles.get("--herdr-web-viewport-height"),
-    width: runtime.styles.get("--herdr-web-viewport-width"),
-    top: runtime.styles.get("--herdr-web-viewport-top"),
-    left: runtime.styles.get("--herdr-web-viewport-left"),
+    height: runtime.styles.get("--herdr-tty-viewport-height"),
+    width: runtime.styles.get("--herdr-tty-viewport-width"),
+    top: runtime.styles.get("--herdr-tty-viewport-top"),
+    left: runtime.styles.get("--herdr-tty-viewport-left"),
   };
 }
 

@@ -47,7 +47,7 @@ func RunNative(ctx context.Context, config Config, stdin io.Reader, stdout, stde
 		return err
 	}
 	browserURL := config.browserURL()
-	fmt.Fprintf(stdout, "Herdr Web listening on %s\n", browserURL)
+	fmt.Fprintf(stdout, "HerdrTTY listening on %s\n", browserURL)
 	if err := openBrowserURL(browserURL); err != nil {
 		fmt.Fprintf(stderr, "open browser: %v\n", err)
 	}
