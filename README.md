@@ -6,6 +6,9 @@ Herdr in your browser: a lightweight, mobile-friendly web terminal for
 [Herdr](https://herdr.dev), powered by
 [ttyd](https://github.com/tsl0922/ttyd).
 
+HerdrTTY is an independent community project and is not affiliated with or
+endorsed by the Herdr project.
+
 The primary design rule is to stay lightweight: one small Go program, the Go
 standard library, and the existing ttyd/Herdr binaries. No Node.js runtime,
 frontend framework, database, or separate control plane.
