@@ -1,9 +1,9 @@
 :root {
-  --herdr-web-viewport-height: 100dvh;
-  --herdr-web-viewport-width: 100vw;
-  --herdr-web-viewport-top: 0px;
-  --herdr-web-viewport-left: 0px;
-  --herdr-web-toolbar-height: 80px;
+  --herdr-tty-viewport-height: 100dvh;
+  --herdr-tty-viewport-width: 100vw;
+  --herdr-tty-viewport-top: 0px;
+  --herdr-tty-viewport-left: 0px;
+  --herdr-tty-toolbar-height: 80px;
   color-scheme: dark;
   background: #000;
 }
@@ -34,15 +34,15 @@
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
-    height: var(--herdr-web-viewport-height) !important;
-    width: var(--herdr-web-viewport-width) !important;
-    transform: translate3d(var(--herdr-web-viewport-left), var(--herdr-web-viewport-top), 0);
+    height: var(--herdr-tty-viewport-height) !important;
+    width: var(--herdr-tty-viewport-width) !important;
+    transform: translate3d(var(--herdr-tty-viewport-left), var(--herdr-tty-viewport-top), 0);
     transform-origin: top left;
   }
 
-  html.herdr-web-toolbar-visible #terminal-container {
+  html.herdr-tty-toolbar-visible #terminal-container {
     height: calc(
-      var(--herdr-web-viewport-height) - var(--herdr-web-toolbar-height)
+      var(--herdr-tty-viewport-height) - var(--herdr-tty-toolbar-height)
     ) !important;
   }
 
@@ -50,7 +50,7 @@
     touch-action: none;
   }
 
-  .xterm .herdr-web-copy-button {
+  .xterm .herdr-tty-copy-button {
     position: absolute;
     right: 12px;
     bottom: calc(12px + env(safe-area-inset-bottom));
@@ -66,28 +66,28 @@
     touch-action: manipulation;
   }
 
-  .xterm .herdr-web-copy-button[hidden] {
+  .xterm .herdr-tty-copy-button[hidden] {
     display: none;
   }
 
-  html.herdr-web-toolbar-visible .xterm .herdr-web-copy-button {
-    bottom: calc(12px + var(--herdr-web-toolbar-height));
+  html.herdr-tty-toolbar-visible .xterm .herdr-tty-copy-button {
+    bottom: calc(12px + var(--herdr-tty-toolbar-height));
   }
 
-  .herdr-web-input-toolbar {
+  .herdr-tty-input-toolbar {
     position: fixed;
     top: calc(
-      var(--herdr-web-viewport-top) + var(--herdr-web-viewport-height) -
-        var(--herdr-web-toolbar-height)
+      var(--herdr-tty-viewport-top) + var(--herdr-tty-viewport-height) -
+        var(--herdr-tty-toolbar-height)
     );
-    left: var(--herdr-web-viewport-left);
+    left: var(--herdr-tty-viewport-left);
     z-index: 30;
     display: flex;
     box-sizing: border-box;
     gap: 6px;
     align-items: stretch;
-    width: var(--herdr-web-viewport-width);
-    height: var(--herdr-web-toolbar-height);
+    width: var(--herdr-tty-viewport-width);
+    height: var(--herdr-tty-toolbar-height);
     padding: 4px calc(8px + env(safe-area-inset-right))
       4px calc(8px + env(safe-area-inset-left));
     border-top: 1px solid #ffffff24;
@@ -95,11 +95,11 @@
     font: 600 13px/1 system-ui, sans-serif;
   }
 
-  .herdr-web-input-toolbar[hidden] {
+  .herdr-tty-input-toolbar[hidden] {
     display: none;
   }
 
-  .herdr-web-input-toolbar button {
+  .herdr-tty-input-toolbar button {
     flex: 1 1 0;
     min-width: 0;
     min-height: 0;
@@ -111,7 +111,7 @@
     touch-action: manipulation;
   }
 
-  .herdr-web-paste-input {
+  .herdr-tty-paste-input {
     flex: 1 1 auto;
     box-sizing: border-box;
     min-width: 0;
@@ -128,11 +128,11 @@
     font: 400 16px/20px system-ui, sans-serif;
   }
 
-  .herdr-web-paste-input:focus {
+  .herdr-tty-paste-input:focus {
     border-color: #78a9ff;
   }
 
-  .herdr-web-toolbar-actions {
+  .herdr-tty-toolbar-actions {
     display: flex;
     flex: 0 0 52px;
     flex-direction: column;
@@ -141,7 +141,7 @@
     height: 72px;
   }
 
-  .herdr-web-toolbar-actions button {
+  .herdr-tty-toolbar-actions button {
     flex: 0 0 34px;
     box-sizing: border-box;
     width: 52px;
@@ -149,11 +149,11 @@
     font-size: 11px;
   }
 
-  .herdr-web-toolbar-actions button:disabled {
+  .herdr-tty-toolbar-actions button:disabled {
     opacity: 0.42;
   }
 
-  .herdr-web-toolbar-actions svg {
+  .herdr-tty-toolbar-actions svg {
     width: 19px;
     height: 19px;
     fill: none;

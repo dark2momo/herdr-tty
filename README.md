@@ -1,8 +1,9 @@
-# Herdr Web
+# HerdrTTY
 
-[![check](https://github.com/dark2momo/herdr-web/actions/workflows/check.yml/badge.svg)](https://github.com/dark2momo/herdr-web/actions/workflows/check.yml)
+[![check](https://github.com/dark2momo/herdr-tty/actions/workflows/check.yml/badge.svg)](https://github.com/dark2momo/herdr-tty/actions/workflows/check.yml)
 
-A small web entry point for [Herdr](https://herdr.dev), powered by
+Herdr in your browser: a lightweight, mobile-friendly web terminal for
+[Herdr](https://herdr.dev), powered by
 [ttyd](https://github.com/tsl0922/ttyd).
 
 The primary design rule is to stay lightweight: one small Go program, the Go
@@ -29,30 +30,30 @@ arguments, checks WebSocket origins, and enforces a configurable client limit.
 With `herdr` and `ttyd` on `PATH`, run:
 
 ```bash
-herdr-web
+herdr-tty
 ```
 
-Herdr Web listens only on `127.0.0.1:7681`, skips login for that loopback-only
+HerdrTTY listens only on `127.0.0.1:7681`, skips login for that loopback-only
 session, and opens the terminal in the local browser. It runs in the foreground;
 press Ctrl+C to stop it. Use `--no-open` when launching from a service or a
 headless shell.
 
-Launch Herdr Web from a regular shell or service, not from an existing Herdr
+Launch HerdrTTY from a regular shell or service, not from an existing Herdr
 pane. It refuses to start when `HERDR_ENV` is set instead of silently creating
 or altering a nested session.
 
 To build from source first:
 
 ```bash
-GOWORK=off go build -o herdr-web ./cmd/herdr-web
+GOWORK=off go build -o herdr-tty ./cmd/herdr-tty
 
-./herdr-web
+./herdr-tty
 ```
 
 Select a named persistent Herdr session directly:
 
 ```bash
-herdr-web --session work
+herdr-tty --session work
 ```
 
 Other arguments after `--` are still passed to Herdr.
@@ -62,7 +63,7 @@ Other arguments after `--` are still passed to Herdr.
 Pass an explicit JSON configuration file for repeatable launches:
 
 ```bash
-herdr-web --config ~/.config/herdr-web/config.json
+herdr-tty --config ~/.config/herdr-tty/config.json
 ```
 
 ```json
@@ -82,12 +83,15 @@ Command-line options override the file. Login credentials are intentionally not
 accepted in JSON; continue to provide them through the environment:
 
 ```bash
-export HERDR_WEB_USERNAME='your-name'
-read -rsp 'Password: ' HERDR_WEB_PASSWORD
-export HERDR_WEB_PASSWORD
+export HERDR_TTY_USERNAME='your-name'
+read -rsp 'Password: ' HERDR_TTY_PASSWORD
+export HERDR_TTY_PASSWORD
 
-herdr-web --listen 0.0.0.0:7681 --no-open
+herdr-tty --listen 0.0.0.0:7681 --no-open
 ```
+
+The legacy `HERDR_WEB_USERNAME` and `HERDR_WEB_PASSWORD` names remain accepted
+for existing installations. New configuration should use `HERDR_TTY_*`.
 
 When both credential variables exist, `--auth auto` selects form login. Without
 credentials it selects `local`, which is rejected unless `--listen` is a
@@ -144,9 +148,10 @@ access with your user privileges; use form login and put it behind a network
 boundary you trust.
 
 Form login uses an HTTP-only, same-site Cookie signed by an
-in-memory random key. Restarting Herdr Web invalidates existing sessions.
-Credentials stay in Herdr Web and are not passed to ttyd: all `HERDR_WEB_*`
-variables are removed from the environment inherited by ttyd and Herdr.
+in-memory random key. Restarting HerdrTTY invalidates existing sessions.
+Credentials stay in HerdrTTY and are not passed to ttyd: all `HERDR_TTY_*` and
+legacy `HERDR_WEB_*` variables are removed from the environment inherited by
+ttyd and Herdr.
 TLS key logging through `SSLKEYLOGFILE`, `NSS_KEYLOGFILE`, or Node's
 `--tls-keylog` option is not inherited by ttyd, Herdr, or their descendants.
 API keys, proxy settings, and other ordinary user environment remain intact.
@@ -158,7 +163,7 @@ reuse an important password with that mode.
 
 ## Scope
 
-Herdr Web serves the browser-to-Herdr application path. VPNs, tunnels, port
+HerdrTTY serves the browser-to-Herdr application path. VPNs, tunnels, port
 forwarding, DNS, firewall rules, and reverse proxies are outside this initial
 stage.
 

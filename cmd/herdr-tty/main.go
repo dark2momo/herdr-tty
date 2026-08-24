@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/dark2momo/herdr-web/internal/app"
+	"github.com/dark2momo/herdr-tty/internal/app"
 )
 
 func main() {

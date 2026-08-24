@@ -33,6 +33,40 @@ func TestParseConfig(t *testing.T) {
 	}
 }
 
+func TestParseConfigAcceptsLegacyCredentialEnvironment(t *testing.T) {
+	environment := map[string]string{
+		legacyUsernameEnv: "alice",
+		legacyPasswordEnv: "legacy secret",
+	}
+	config, err := ParseConfig(nil, func(key string) string { return environment[key] }, func() (string, error) {
+		return "/workspace", nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Username != "alice" || config.Password != "legacy secret" || config.AuthMode != "form" {
+		t.Fatalf("unexpected legacy credential config: %#v", config)
+	}
+}
+
+func TestParseConfigPrefersNewCredentialEnvironment(t *testing.T) {
+	environment := map[string]string{
+		usernameEnv:       "new-user",
+		passwordEnv:       "new-secret",
+		legacyUsernameEnv: "legacy-user",
+		legacyPasswordEnv: "legacy-secret",
+	}
+	config, err := ParseConfig(nil, func(key string) string { return environment[key] }, func() (string, error) {
+		return "/workspace", nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Username != "new-user" || config.Password != "new-secret" {
+		t.Fatalf("unexpected preferred credential config: %#v", config)
+	}
+}
+
 func TestBackendArgsDoNotContainCredentials(t *testing.T) {
 	config := Config{
 		Herdr:      "herdr",
@@ -146,7 +180,7 @@ func TestParseConfigRejectsLocalAuthOnNonLoopback(t *testing.T) {
 }
 
 func TestParseConfigFileAndCLIOverrides(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "herdr-web.json")
+	path := filepath.Join(t.TempDir(), "herdr-tty.json")
 	content := `{
   "listen": "127.0.0.1:9000",
   "cwd": "/configured",
@@ -181,7 +215,7 @@ func TestParseConfigFileAndCLIOverrides(t *testing.T) {
 }
 
 func TestParseConfigFileRejectsUnknownFields(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "herdr-web.json")
+	path := filepath.Join(t.TempDir(), "herdr-tty.json")
 	if err := os.WriteFile(path, []byte(`{"unknown": true}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +228,7 @@ func TestParseConfigFileRejectsUnknownFields(t *testing.T) {
 }
 
 func TestParseConfigKeepsFileHerdrArgsWithoutCLIArgs(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "herdr-web.json")
+	path := filepath.Join(t.TempDir(), "herdr-tty.json")
 	if err := os.WriteFile(path, []byte(`{"herdr_args":["--session","configured"]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}

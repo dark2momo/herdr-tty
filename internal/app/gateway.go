@@ -78,7 +78,7 @@ func RunGateway(ctx context.Context, config Config, stdin io.Reader, stdout, std
 	serverExit := make(chan error, 1)
 	go func() { serverExit <- server.Serve(listener) }()
 	browserURL := config.browserURL()
-	fmt.Fprintf(stdout, "Herdr Web listening on %s\n", browserURL)
+	fmt.Fprintf(stdout, "HerdrTTY listening on %s\n", browserURL)
 	if config.OpenBrowser {
 		if err := openBrowserURL(browserURL); err != nil {
 			fmt.Fprintf(stderr, "open browser: %v\n", err)

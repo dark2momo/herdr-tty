@@ -26,7 +26,7 @@ func TestInjectMobileAssets(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(body)
-	for _, expected := range []string{"data-herdr-web-mobile", mobileCSSPath, mobileJavaScriptPath} {
+	for _, expected := range []string{"data-herdr-tty-mobile", mobileCSSPath, mobileJavaScriptPath} {
 		if !strings.Contains(text, expected) {
 			t.Fatalf("injected HTML does not contain %q: %s", expected, text)
 		}
@@ -87,7 +87,7 @@ func TestMobileScriptDoesNotInterceptKeyboard(t *testing.T) {
 		`sendMouse("mousedown", startX, startY, 0, 1, true)`,
 		"window.term.getSelection",
 		"navigator.clipboard",
-		"herdr-web-input-toolbar",
+		"herdr-tty-input-toolbar",
 		`document.execCommand("copy")`,
 		`new KeyboardEvent("keydown"`,
 		"Press\\s+.+\\s+to\\s+Reconnect",
@@ -97,9 +97,9 @@ func TestMobileScriptDoesNotInterceptKeyboard(t *testing.T) {
 		}
 	}
 	for _, feature := range []string{
-		"--herdr-web-viewport-top",
-		"--herdr-web-toolbar-height",
-		"herdr-web-input-toolbar",
+		"--herdr-tty-viewport-top",
+		"--herdr-tty-toolbar-height",
+		"herdr-tty-input-toolbar",
 		"translate3d",
 		"background-color: #000",
 	} {

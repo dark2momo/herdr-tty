@@ -14,7 +14,7 @@ const (
 	mobileJavaScriptPath = "/_herdr/mobile.js"
 	mobileCSSPath        = "/_herdr/mobile.css"
 	maxHTMLSize          = 4 << 20
-	mobileHead           = `<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover" data-herdr-web-mobile><link rel="stylesheet" href="/_herdr/mobile.css"><script defer src="/_herdr/mobile.js"></script>`
+	mobileHead           = `<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover" data-herdr-tty-mobile><link rel="stylesheet" href="/_herdr/mobile.css"><script defer src="/_herdr/mobile.js"></script>`
 )
 
 //go:embed web/mobile.js
@@ -63,7 +63,7 @@ func injectMobileAssets(response *http.Response) error {
 	if len(body) > maxHTMLSize {
 		return fmt.Errorf("ttyd HTML exceeds %d bytes", maxHTMLSize)
 	}
-	if bytes.Contains(body, []byte("data-herdr-web-mobile")) {
+	if bytes.Contains(body, []byte("data-herdr-tty-mobile")) {
 		response.Body = io.NopCloser(bytes.NewReader(body))
 		return nil
 	}

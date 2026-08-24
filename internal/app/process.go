@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const applicationEnvironmentPrefix = "HERDR_WEB_"
+var applicationEnvironmentPrefixes = [...]string{"HERDR_TTY_", "HERDR_WEB_"}
 
 func newTtydCommand(ctx context.Context, path string, args, environment []string) *exec.Cmd {
 	command := exec.CommandContext(ctx, path, args...)
@@ -27,8 +27,10 @@ func childEnvironment(environment []string) []string {
 }
 
 func excludeChildEnvironment(name, value string) bool {
-	if strings.HasPrefix(name, applicationEnvironmentPrefix) {
-		return true
+	for _, prefix := range applicationEnvironmentPrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
 	}
 	if name == "SSLKEYLOGFILE" || name == "NSS_KEYLOGFILE" {
 		return true
