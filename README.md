@@ -126,6 +126,8 @@ Options:
   Input controls above the virtual keyboard. Input pastes non-empty text and
   then sends a terminal return; with empty text, it sends only the return. The
   virtual keyboard's Return key remains the native way to add a line break.
+- Herdr's text-entry dialogs for names and new worktrees automatically focus
+  the mobile paste input after the dialog appears.
 - At ttyd's reconnect prompt, Input reconnects through ttyd's native Enter-key
   path without clearing the draft. Both actions pause while reconnecting, and
   the preserved draft requires a second Input tap after the connection returns.

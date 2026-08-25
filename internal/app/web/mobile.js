@@ -422,6 +422,64 @@
       scheduleViewportUpdate();
     }
 
+    function herdrTextDialogVisible() {
+      const activeBuffer = window.term?.buffer?.active;
+      if (!activeBuffer || activeBuffer.type !== "alternate") return false;
+
+      let titleRow = -1;
+      let actionRow = -1;
+      let paintedCaretRow = -1;
+      const firstRow = activeBuffer.viewportY || 0;
+      const rowCount = Number(window.term?.rows) || activeBuffer.length || 0;
+      const lastRow = Math.min(activeBuffer.length || 0, firstRow + rowCount);
+      const cursorRow = (activeBuffer.baseY || 0) + (activeBuffer.cursorY || 0);
+      for (let row = firstRow; row < lastRow; row += 1) {
+        const text = activeBuffer.getLine(row)?.translateToString(true) || "";
+        const modalRow = text.indexOf("│") !== text.lastIndexOf("│");
+        if (
+          modalRow &&
+          /\b(?:new workspace|rename workspace|new tab|rename tab|rename pane|new worktree)\b/i.test(
+            text,
+          )
+        ) {
+          titleRow = row;
+        }
+        if (modalRow && text.includes("█")) paintedCaretRow = row;
+        if (
+          modalRow &&
+          (/\bsave\b.*\bclear\b.*\bcancel\b/i.test(text) ||
+            /\bcreate and open\b.*\bcancel\b/i.test(text))
+        ) {
+          actionRow = row;
+        }
+      }
+      if (titleRow < firstRow || actionRow <= titleRow) return false;
+
+      // Herdr 0.8.0 paints a block caret into the input field. Newer builds
+      // expose a real terminal cursor there for IME anchoring. Support both.
+      return (
+        (paintedCaretRow > titleRow && paintedCaretRow < actionRow) ||
+        (cursorRow > titleRow && cursorRow < actionRow)
+      );
+    }
+
+    let textDialogVisible = false;
+    function focusComposerForHerdrDialog() {
+      const visible = herdrTextDialogVisible();
+      if (visible && !textDialogVisible && document.activeElement !== pasteInput) {
+        setVisible(true);
+        pasteInput.focus({ preventScroll: true });
+      }
+      textDialogVisible = visible;
+    }
+
+    if (typeof window.term?.onWriteParsed === "function") {
+      window.term.onWriteParsed(focusComposerForHerdrDialog);
+    } else if (typeof window.term?.onRender === "function") {
+      window.term.onRender(focusComposerForHerdrDialog);
+    }
+    window.setTimeout(focusComposerForHerdrDialog, 0);
+
     document.addEventListener("focusin", (event) => {
       if (toolbar.contains(event.target)) {
         setVisible(true);
