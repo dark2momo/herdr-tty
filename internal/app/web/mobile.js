@@ -166,6 +166,7 @@
   }
 
   const holdDelay = 450;
+  const compatibilityMouseDelay = 500;
   const dragThreshold = 6;
   const twoFingerTapDelay = 400;
   const twoFingerTapDistance = 12;
@@ -447,6 +448,7 @@
     if (active?.classList?.contains("xterm-helper-textarea") && terminal.contains(active)) {
       setVisible(true);
     }
+    return { show: () => setVisible(true) };
   }
 
   function attachTouchControls(terminal) {
@@ -495,7 +497,7 @@
     });
     window.term?.onSelectionChange?.(captureCopySelection);
 
-    createInputToolbar(terminal);
+    const inputToolbar = createInputToolbar(terminal);
 
     let startX = 0;
     let startY = 0;
@@ -520,14 +522,12 @@
     let twoFingerMovement = 0;
     const terminalInput = terminal.querySelector?.(".xterm-helper-textarea");
     let terminalInputReadOnlyBeforeTouch = null;
-
-    function terminalMouseTrackingActive() {
-      const mode = window.term?.modes?.mouseTrackingMode;
-      return typeof mode === "string" && mode !== "none";
-    }
+    let terminalInputRestoreTimer = 0;
 
     function guardTerminalInputFromMouseTap() {
-      if (!terminalInput || !terminalMouseTrackingActive()) return;
+      if (!terminalInput) return;
+      if (terminalInputRestoreTimer) clearTimeout(terminalInputRestoreTimer);
+      terminalInputRestoreTimer = 0;
       if (terminalInputReadOnlyBeforeTouch === null) {
         terminalInputReadOnlyBeforeTouch = terminalInput.readOnly;
       }
@@ -537,14 +537,34 @@
       terminalInput.readOnly = true;
     }
 
-    function releaseTerminalInputGuard() {
+    function releaseTerminalInputGuard(delay) {
       if (terminalInputReadOnlyBeforeTouch === null) return;
-      window.setTimeout(() => {
+      if (terminalInputRestoreTimer) clearTimeout(terminalInputRestoreTimer);
+      terminalInputRestoreTimer = window.setTimeout(() => {
+        terminalInputRestoreTimer = 0;
         if (activeTouches !== 0 || terminalInputReadOnlyBeforeTouch === null) return;
         terminalInput.readOnly = terminalInputReadOnlyBeforeTouch;
         terminalInputReadOnlyBeforeTouch = null;
-      }, 0);
+      }, delay);
     }
+
+    document.addEventListener(
+      "mousedown",
+      (event) => {
+        if (
+          terminalInputReadOnlyBeforeTouch === null ||
+          !terminal.contains(event.target)
+        ) {
+          return;
+        }
+        // Compatibility mouse events may arrive in a later task than
+        // touchend. Keep the input guarded through xterm's mousedown handler,
+        // then restore it after the mouse report has been forwarded.
+        guardTerminalInputFromMouseTap();
+        releaseTerminalInputGuard(0);
+      },
+      { capture: true },
+    );
 
     function stopInertia() {
       if (animation) cancelAnimationFrame(animation);
@@ -642,6 +662,7 @@
         if (event.target === copyButton) return;
         activeTouches = event.touches.length;
         guardTerminalInputFromMouseTap();
+        inputToolbar.show();
         copyButton.hidden = true;
         if (event.touches.length === 2) {
           startTwoFingerTap(event);
@@ -729,7 +750,7 @@
       (event) => {
         if (event.target === copyButton) return;
         activeTouches = event.touches.length;
-        if (activeTouches === 0) releaseTerminalInputGuard();
+        if (activeTouches === 0) releaseTerminalInputGuard(compatibilityMouseDelay);
         if (twoFinger) {
           event.preventDefault();
           event.stopImmediatePropagation();
@@ -776,7 +797,7 @@
         cancelHold();
         stopInertia();
         activeTouches = 0;
-        releaseTerminalInputGuard();
+        releaseTerminalInputGuard(0);
         twoFinger = false;
         twoFingerEligible = false;
         if (selecting) {

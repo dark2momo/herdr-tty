@@ -145,7 +145,6 @@ function loadMobile({
 function loadTouchMobile({
   copyEventSupported = true,
   deferTimers = false,
-  mouseTrackingMode = "none",
   promptValue = null,
   selection = "selected text",
 } = {}) {
@@ -234,7 +233,7 @@ function loadTouchMobile({
       },
       focus() {
         document.activeElement = element;
-        if (element === helper && !element.readOnly) keyboardFocuses += 1;
+        if (element.tagName === "TEXTAREA" && !element.readOnly) keyboardFocuses += 1;
       },
       select() {
         selectedControl = element;
@@ -334,7 +333,6 @@ function loadTouchMobile({
     },
   };
   window.term = {
-    modes: { mouseTrackingMode },
     fit() {
       terminalFits += 1;
     },
@@ -412,9 +410,6 @@ function loadTouchMobile({
       helper.focus();
       dispatchDocument("focusin", { target: helper });
     },
-    focusTerminalInput() {
-      helper.focus();
-    },
     focusPasteInput() {
       const input = toolbar.children.find(
         (child) => child.className === "herdr-tty-paste-input",
@@ -470,6 +465,12 @@ function loadTouchMobile({
         for (const callback of timers) callback();
       }
     },
+    mouseDownTerminal() {
+      dispatchDocument("mousedown", { target: terminal });
+      // Model xterm's target-phase mousedown handler, which focuses its hidden
+      // textarea before forwarding the mouse report to the terminal app.
+      helper.focus();
+    },
     touchTerminal(name, touches, changedTouches = []) {
       let prevented = false;
       let stopped = false;
@@ -521,30 +522,33 @@ test("copy button offers a native manual field when WebKit rejects programmatic 
   assert.equal(runtime.copyButton.disabled, false);
 });
 
-test("mouse-tracked terminal taps do not summon the virtual keyboard", () => {
-  const runtime = loadTouchMobile({ deferTimers: true, mouseTrackingMode: "any" });
+test("terminal taps stay guarded through the compatibility mousedown", () => {
+  const runtime = loadTouchMobile({ deferTimers: true });
   const touch = { clientX: 120, clientY: 80 };
 
   runtime.touchTerminal("touchstart", [touch]);
   assert.equal(runtime.terminalInputReadOnly, true);
-
-  // xterm focuses its hidden textarea before forwarding the mouse report.
-  runtime.focusTerminalInput();
-  assert.equal(runtime.keyboardFocuses, 0);
-
   runtime.touchTerminal("touchend", [], [touch]);
   assert.equal(runtime.terminalInputReadOnly, true);
+
+  runtime.mouseDownTerminal();
+  assert.equal(runtime.keyboardFocuses, 0);
+  assert.equal(runtime.terminalInputReadOnly, true);
+
   runtime.runTimers();
   assert.equal(runtime.terminalInputReadOnly, false);
 });
 
-test("plain terminal taps retain direct keyboard focus", () => {
-  const runtime = loadTouchMobile({ deferTimers: true, mouseTrackingMode: "none" });
+test("terminal taps reveal the composer and only its input opens the keyboard", () => {
+  const runtime = loadTouchMobile({ deferTimers: true });
   const touch = { clientX: 120, clientY: 80 };
 
+  assert.equal(runtime.toolbar.hidden, true);
   runtime.touchTerminal("touchstart", [touch]);
-  assert.equal(runtime.terminalInputReadOnly, false);
-  runtime.focusTerminalInput();
+  assert.equal(runtime.toolbar.hidden, false);
+  assert.equal(runtime.keyboardFocuses, 0);
+
+  runtime.focusPasteInput();
   assert.equal(runtime.keyboardFocuses, 1);
   runtime.touchTerminal("touchend", [], [touch]);
   runtime.runTimers();
