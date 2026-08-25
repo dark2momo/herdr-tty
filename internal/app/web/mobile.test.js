@@ -158,6 +158,10 @@ function loadTouchMobile({
   const prompts = [];
   const mutationObservers = [];
   const pendingTimers = new Map();
+  const writeParsedListeners = [];
+  let screenBufferType = "alternate";
+  let screenCursorY = 0;
+  let screenLines = [];
   let currentSelection = selection;
   let copiedText = "";
   let keyboardFocuses = 0;
@@ -333,6 +337,27 @@ function loadTouchMobile({
     },
   };
   window.term = {
+    buffer: {
+      active: {
+        get length() {
+          return screenLines.length;
+        },
+        get type() {
+          return screenBufferType;
+        },
+        baseY: 0,
+        get cursorY() {
+          return screenCursorY;
+        },
+        viewportY: 0,
+        getLine(row) {
+          const text = screenLines[row];
+          if (text === undefined) return undefined;
+          return { translateToString: () => text };
+        },
+      },
+    },
+    rows: 40,
     fit() {
       terminalFits += 1;
     },
@@ -347,6 +372,10 @@ function loadTouchMobile({
     getSelection: () => currentSelection,
     focus() {
       helper.focus();
+    },
+    onWriteParsed(listener) {
+      writeParsedListeners.push(listener);
+      return { dispose() {} };
     },
   };
 
@@ -442,6 +471,17 @@ function loadTouchMobile({
       }
       overlay.textContent = message;
       for (const observer of mutationObservers) observer.callback([]);
+    },
+    setTerminalScreen(lines, { cursorY = 0, type = "alternate" } = {}) {
+      screenLines = lines;
+      screenCursorY = cursorY;
+      screenBufferType = type;
+      for (const listener of writeParsedListeners) listener();
+    },
+    get pasteInputFocused() {
+      return document.activeElement === toolbar.children.find(
+        (child) => child.className === "herdr-tty-paste-input",
+      );
     },
     toolbarButton(name) {
       const actions = toolbar.children.find(
@@ -552,6 +592,66 @@ test("terminal taps reveal the composer and only its input opens the keyboard", 
   assert.equal(runtime.keyboardFocuses, 1);
   runtime.touchTerminal("touchend", [], [touch]);
   runtime.runTimers();
+});
+
+test("Herdr text dialogs focus the mobile composer once when they open", () => {
+  const runtime = loadTouchMobile();
+  const dialog = [
+    "╭────────────────────────────────────╮",
+    "│ new tab                            │",
+    "│ draft█                             │",
+    "│ ↵ save    ^c clear    esc cancel   │",
+    "╰────────────────────────────────────╯",
+  ];
+
+  runtime.setTerminalScreen(dialog, { cursorY: 4 });
+
+  assert.equal(runtime.toolbar.hidden, false);
+  assert.equal(runtime.pasteInputFocused, true);
+  assert.equal(runtime.keyboardFocuses, 1);
+
+  runtime.focusTerminal();
+  runtime.setTerminalScreen(dialog, { cursorY: 4 });
+  assert.equal(runtime.pasteInputFocused, false);
+  assert.equal(runtime.keyboardFocuses, 2);
+
+  runtime.setTerminalScreen(["regular Herdr screen"]);
+  runtime.setTerminalScreen([
+    "╭────────────────────────────────────╮",
+    "│ rename pane                        │",
+    "│                                    │",
+    "│ ↵ save    ^c clear    esc cancel   │",
+    "╰────────────────────────────────────╯",
+  ], { cursorY: 2 });
+  assert.equal(runtime.pasteInputFocused, true);
+  assert.equal(runtime.keyboardFocuses, 3);
+});
+
+test("ordinary terminal text does not trigger Herdr dialog focus", () => {
+  const runtime = loadTouchMobile();
+
+  runtime.setTerminalScreen([
+    "documentation for a new tab",
+    "the save and clear actions are described here",
+  ]);
+  assert.equal(runtime.pasteInputFocused, false);
+  assert.equal(runtime.keyboardFocuses, 0);
+
+  runtime.setTerminalScreen([
+    "new tab",
+    "source text █",
+    "save clear cancel",
+    "$ ",
+  ], { cursorY: 3 });
+  assert.equal(runtime.pasteInputFocused, false);
+  assert.equal(runtime.keyboardFocuses, 0);
+
+  runtime.setTerminalScreen([
+    "│ rename pane                         │",
+    "│ ↵ save    ^c clear    esc cancel    │",
+  ], { cursorY: 1, type: "normal" });
+  assert.equal(runtime.pasteInputFocused, false);
+  assert.equal(runtime.keyboardFocuses, 0);
 });
 
 test("showing the input toolbar directly refits the terminal", () => {
