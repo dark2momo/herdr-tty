@@ -144,6 +144,8 @@ function loadMobile({
 
 function loadTouchMobile({
   copyEventSupported = true,
+  deferTimers = false,
+  mouseTrackingMode = "none",
   promptValue = null,
   selection = "selected text",
 } = {}) {
@@ -156,10 +158,25 @@ function loadTouchMobile({
   const keyboardEvents = [];
   const prompts = [];
   const mutationObservers = [];
+  const pendingTimers = new Map();
   let currentSelection = selection;
   let copiedText = "";
+  let keyboardFocuses = 0;
+  let nextTimer = 1;
   let selectedControl = null;
+  let terminalFits = 0;
   let document;
+
+  function setTimer(callback) {
+    const timer = nextTimer++;
+    if (deferTimers) pendingTimers.set(timer, callback);
+    else callback();
+    return timer;
+  }
+
+  function clearTimer(timer) {
+    pendingTimers.delete(timer);
+  }
 
   function createElement(tagName) {
     const listeners = new Map();
@@ -173,6 +190,7 @@ function loadTouchMobile({
       innerHTML: "",
       hidden: false,
       disabled: false,
+      readOnly: false,
       textContent: "",
       value: "",
       parentNode: null,
@@ -216,6 +234,7 @@ function loadTouchMobile({
       },
       focus() {
         document.activeElement = element;
+        if (element === helper && !element.readOnly) keyboardFocuses += 1;
       },
       select() {
         selectedControl = element;
@@ -308,16 +327,17 @@ function loadTouchMobile({
     addEventListener() {},
     dispatchEvent() {},
     matchMedia: () => ({ matches: true }),
-    setTimeout(callback) {
-      callback();
-      return 1;
-    },
+    setTimeout: setTimer,
     prompt(...args) {
       prompts.push(args);
       return promptValue;
     },
   };
   window.term = {
+    modes: { mouseTrackingMode },
+    fit() {
+      terminalFits += 1;
+    },
     input(data, wasUserInput) {
       terminalInputs.push({ data, wasUserInput });
       terminalEvents.push({ data, type: "input" });
@@ -347,6 +367,7 @@ function loadTouchMobile({
         Object.assign(this, init);
       }
     },
+    performance: { now: () => 0 },
     MutationObserver: class {
       constructor(callback) {
         this.callback = callback;
@@ -360,7 +381,7 @@ function loadTouchMobile({
       return 1;
     },
     cancelAnimationFrame() {},
-    clearTimeout() {},
+    clearTimeout: clearTimer,
   };
   vm.runInNewContext(source, context, { filename: "mobile.js" });
 
@@ -375,12 +396,24 @@ function loadTouchMobile({
     terminalEvents,
     keyboardEvents,
     prompts,
+    get keyboardFocuses() {
+      return keyboardFocuses;
+    },
+    get terminalFits() {
+      return terminalFits;
+    },
+    get terminalInputReadOnly() {
+      return helper.readOnly;
+    },
     get copiedText() {
       return copiedText;
     },
     focusTerminal() {
       helper.focus();
       dispatchDocument("focusin", { target: helper });
+    },
+    focusTerminalInput() {
+      helper.focus();
     },
     focusPasteInput() {
       const input = toolbar.children.find(
@@ -430,6 +463,30 @@ function loadTouchMobile({
     rootStyle(name) {
       return rootStyles.get(name);
     },
+    runTimers() {
+      while (pendingTimers.size > 0) {
+        const timers = [...pendingTimers.values()];
+        pendingTimers.clear();
+        for (const callback of timers) callback();
+      }
+    },
+    touchTerminal(name, touches, changedTouches = []) {
+      let prevented = false;
+      let stopped = false;
+      const event = {
+        changedTouches,
+        target: terminal,
+        touches,
+        preventDefault() {
+          prevented = true;
+        },
+        stopImmediatePropagation() {
+          stopped = true;
+        },
+      };
+      for (const listener of terminal.listeners.get(name) || []) listener(event);
+      return { prevented, stopped };
+    },
   };
 }
 
@@ -462,6 +519,45 @@ test("copy button offers a native manual field when WebKit rejects programmatic 
   assert.deepEqual(runtime.prompts, [["Copy selected text", "manual text"]]);
   assert.equal(runtime.copyButton.hidden, true);
   assert.equal(runtime.copyButton.disabled, false);
+});
+
+test("mouse-tracked terminal taps do not summon the virtual keyboard", () => {
+  const runtime = loadTouchMobile({ deferTimers: true, mouseTrackingMode: "any" });
+  const touch = { clientX: 120, clientY: 80 };
+
+  runtime.touchTerminal("touchstart", [touch]);
+  assert.equal(runtime.terminalInputReadOnly, true);
+
+  // xterm focuses its hidden textarea before forwarding the mouse report.
+  runtime.focusTerminalInput();
+  assert.equal(runtime.keyboardFocuses, 0);
+
+  runtime.touchTerminal("touchend", [], [touch]);
+  assert.equal(runtime.terminalInputReadOnly, true);
+  runtime.runTimers();
+  assert.equal(runtime.terminalInputReadOnly, false);
+});
+
+test("plain terminal taps retain direct keyboard focus", () => {
+  const runtime = loadTouchMobile({ deferTimers: true, mouseTrackingMode: "none" });
+  const touch = { clientX: 120, clientY: 80 };
+
+  runtime.touchTerminal("touchstart", [touch]);
+  assert.equal(runtime.terminalInputReadOnly, false);
+  runtime.focusTerminalInput();
+  assert.equal(runtime.keyboardFocuses, 1);
+  runtime.touchTerminal("touchend", [], [touch]);
+  runtime.runTimers();
+});
+
+test("showing the input toolbar directly refits the terminal", () => {
+  const runtime = loadTouchMobile();
+  const fitsBeforeFocus = runtime.terminalFits;
+
+  runtime.focusTerminal();
+
+  assert.equal(runtime.rootHasClass("herdr-tty-toolbar-visible"), true);
+  assert.ok(runtime.terminalFits > fitsBeforeFocus);
 });
 
 test("toolbar Input pastes input text and sends return when empty", async () => {
