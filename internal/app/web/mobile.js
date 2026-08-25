@@ -16,6 +16,13 @@
   let dispatchingResize = false;
 
   function notifyTerminalResize() {
+    if (
+      document.querySelector(".xterm") &&
+      typeof window.term?.fit === "function"
+    ) {
+      window.term.fit();
+      return;
+    }
     dispatchingResize = true;
     window.dispatchEvent(new Event("resize"));
     dispatchingResize = false;
@@ -410,6 +417,7 @@
       if (toolbar.hidden === !visible) return;
       toolbar.hidden = !visible;
       root.classList.toggle("herdr-tty-toolbar-visible", visible);
+      notifyTerminalResize();
       scheduleViewportUpdate();
     }
 
@@ -510,6 +518,33 @@
     let twoFingerX = 0;
     let twoFingerY = 0;
     let twoFingerMovement = 0;
+    const terminalInput = terminal.querySelector?.(".xterm-helper-textarea");
+    let terminalInputReadOnlyBeforeTouch = null;
+
+    function terminalMouseTrackingActive() {
+      const mode = window.term?.modes?.mouseTrackingMode;
+      return typeof mode === "string" && mode !== "none";
+    }
+
+    function guardTerminalInputFromMouseTap() {
+      if (!terminalInput || !terminalMouseTrackingActive()) return;
+      if (terminalInputReadOnlyBeforeTouch === null) {
+        terminalInputReadOnlyBeforeTouch = terminalInput.readOnly;
+      }
+      // xterm focuses this textarea before forwarding a mouse report. Keeping
+      // it read-only for the touch gesture prevents a TUI click from opening
+      // the virtual keyboard without interfering with the mouse report.
+      terminalInput.readOnly = true;
+    }
+
+    function releaseTerminalInputGuard() {
+      if (terminalInputReadOnlyBeforeTouch === null) return;
+      window.setTimeout(() => {
+        if (activeTouches !== 0 || terminalInputReadOnlyBeforeTouch === null) return;
+        terminalInput.readOnly = terminalInputReadOnlyBeforeTouch;
+        terminalInputReadOnlyBeforeTouch = null;
+      }, 0);
+    }
 
     function stopInertia() {
       if (animation) cancelAnimationFrame(animation);
@@ -606,6 +641,7 @@
       (event) => {
         if (event.target === copyButton) return;
         activeTouches = event.touches.length;
+        guardTerminalInputFromMouseTap();
         copyButton.hidden = true;
         if (event.touches.length === 2) {
           startTwoFingerTap(event);
@@ -693,6 +729,7 @@
       (event) => {
         if (event.target === copyButton) return;
         activeTouches = event.touches.length;
+        if (activeTouches === 0) releaseTerminalInputGuard();
         if (twoFinger) {
           event.preventDefault();
           event.stopImmediatePropagation();
@@ -739,6 +776,7 @@
         cancelHold();
         stopInertia();
         activeTouches = 0;
+        releaseTerminalInputGuard();
         twoFinger = false;
         twoFingerEligible = false;
         if (selecting) {
