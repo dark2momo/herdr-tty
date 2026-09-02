@@ -30,6 +30,17 @@ arguments, checks WebSocket origins, and enforces a configurable client limit.
 
 ## Quick start
 
+### Install with a coding agent
+
+Give your coding agent [AGENT_INSTALL.md](AGENT_INSTALL.md) and this request:
+
+> Install HerdrTTY by following `AGENT_INSTALL.md`. Preserve existing
+> credentials and service settings, default new installations to a
+> loopback-only listener, and do not configure network or platform
+> infrastructure.
+
+### Run manually
+
 With `herdr` and `ttyd` on `PATH`, run:
 
 ```bash
