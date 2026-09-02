@@ -215,6 +215,19 @@ function loadTouchMobile({
       contains(target) {
         return target === element || element.children.some((child) => child.contains?.(target));
       },
+      closest(selector) {
+        const names = selector
+          .split(",")
+          .map((part) => part.trim().replace(/^\./, ""))
+          .filter(Boolean);
+        let node = element;
+        while (node) {
+          const own = (node.className || "").split(/\s+/);
+          if (names.some((name) => own.includes(name))) return node;
+          node = node.parentNode;
+        }
+        return null;
+      },
       querySelector(selector) {
         const className = selector.startsWith(".") ? selector.slice(1) : "";
         for (const child of element.children) {
@@ -418,6 +431,7 @@ function loadTouchMobile({
   return {
     copyButton,
     toolbar,
+    terminal,
     terminalInputs,
     terminalPastes,
     terminalEvents,
@@ -527,6 +541,16 @@ function loadTouchMobile({
       };
       for (const listener of terminal.listeners.get(name) || []) listener(event);
       return { prevented, stopped };
+    },
+    dispatchContextMenu(target) {
+      let prevented = false;
+      dispatchDocument("contextmenu", {
+        target,
+        preventDefault() {
+          prevented = true;
+        },
+      });
+      return prevented;
     },
   };
 }
@@ -771,6 +795,17 @@ test("paste input shrinks after multiline content is removed", () => {
   assert.equal(runtime.pasteInput.style.height, "72px");
   assert.equal(runtime.pasteInput.style.overflowY, "hidden");
   assert.equal(runtime.rootStyle("--herdr-tty-toolbar-height"), "80px");
+});
+
+test("context menu is allowed only on the paste input", () => {
+  const runtime = loadTouchMobile();
+
+  // Long-press paste menus must keep working on the bottom input...
+  assert.equal(runtime.dispatchContextMenu(runtime.pasteInput), false);
+  // ...while the terminal keeps its menu suppressed (two-finger right-click)...
+  assert.equal(runtime.dispatchContextMenu(runtime.terminal), true);
+  // ...and the rest of the toolbar gets no free pass either.
+  assert.equal(runtime.dispatchContextMenu(runtime.toolbar), true);
 });
 
 test("iOS virtual Chinese punctuation is forwarded as non-composition input", () => {
