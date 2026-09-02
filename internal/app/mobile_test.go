@@ -26,7 +26,7 @@ func TestInjectMobileAssets(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(body)
-	for _, expected := range []string{"data-herdr-tty-mobile", mobileCSSPath, mobileJavaScriptPath} {
+	for _, expected := range []string{"data-herdr-tty-mobile", `name="color-scheme"`, `name="theme-color"`, mobileCSSPath, mobileJavaScriptPath} {
 		if !strings.Contains(text, expected) {
 			t.Fatalf("injected HTML does not contain %q: %s", expected, text)
 		}

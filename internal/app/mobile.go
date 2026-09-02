@@ -14,7 +14,7 @@ const (
 	mobileJavaScriptPath = "/_herdr/mobile.js"
 	mobileCSSPath        = "/_herdr/mobile.css"
 	maxHTMLSize          = 4 << 20
-	mobileHead           = `<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover" data-herdr-tty-mobile><link rel="stylesheet" href="/_herdr/mobile.css"><script defer src="/_herdr/mobile.js"></script>`
+	mobileHead           = `<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover" data-herdr-tty-mobile><meta name="color-scheme" content="dark"><meta name="theme-color" content="#000000"><link rel="stylesheet" href="/_herdr/mobile.css"><script defer src="/_herdr/mobile.js"></script>`
 )
 
 //go:embed web/mobile.js
