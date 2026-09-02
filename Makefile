@@ -9,11 +9,11 @@ build:
 
 test:
 	go test ./...
-	node --test internal/app/web/mobile.test.js
+	node --test internal/app/web/*.test.js
 
 check:
 	go test -race ./...
 	go vet ./...
 	go build ./...
 	node --check internal/app/web/mobile.js
-	node --test internal/app/web/mobile.test.js
+	node --test internal/app/web/*.test.js

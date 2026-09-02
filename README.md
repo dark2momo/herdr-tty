@@ -129,6 +129,8 @@ Options:
 
 ## Mobile behavior
 
+- On touch devices, login clears the active field and lets the virtual-keyboard
+  viewport settle before navigating to the terminal.
 - One-finger drag scrolls the active Herdr view with light inertia.
 - Long-press and drag selects terminal text; a temporary Copy button writes the
   xterm selection through Clipboard API or an HTTP-compatible copy event. If
