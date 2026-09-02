@@ -606,15 +606,24 @@ test("terminal taps stay guarded through the compatibility mousedown", () => {
 test("terminal taps reveal the composer and only its input opens the keyboard", () => {
   const runtime = loadTouchMobile({ deferTimers: true });
   const touch = { clientX: 120, clientY: 80 };
+  const fitsBeforeTap = runtime.terminalFits;
 
   assert.equal(runtime.toolbar.hidden, true);
   runtime.touchTerminal("touchstart", [touch]);
+  assert.equal(runtime.toolbar.hidden, true);
+  assert.equal(runtime.terminalFits, fitsBeforeTap);
+  runtime.touchTerminal("touchend", [], [touch]);
+  runtime.mouseDownTerminal();
+  assert.equal(runtime.toolbar.hidden, true);
+  assert.equal(runtime.terminalFits, fitsBeforeTap);
+
+  runtime.touchTerminal("click", []);
   assert.equal(runtime.toolbar.hidden, false);
+  assert.ok(runtime.terminalFits > fitsBeforeTap);
   assert.equal(runtime.keyboardFocuses, 0);
 
   runtime.focusPasteInput();
   assert.equal(runtime.keyboardFocuses, 1);
-  runtime.touchTerminal("touchend", [], [touch]);
   runtime.runTimers();
 });
 

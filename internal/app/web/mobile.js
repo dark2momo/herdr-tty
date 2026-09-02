@@ -637,6 +637,13 @@
       { capture: true },
     );
 
+    terminal.addEventListener("click", (event) => {
+      if (event.target === copyButton) return;
+      // Let xterm forward the complete compatibility mouse click against the
+      // current grid before showing the toolbar and resizing the PTY.
+      inputToolbar.show();
+    });
+
     function stopInertia() {
       if (animation) cancelAnimationFrame(animation);
       animation = 0;
@@ -733,7 +740,6 @@
         if (event.target === copyButton) return;
         activeTouches = event.touches.length;
         guardTerminalInputFromMouseTap();
-        inputToolbar.show();
         copyButton.hidden = true;
         if (event.touches.length === 2) {
           startTwoFingerTap(event);

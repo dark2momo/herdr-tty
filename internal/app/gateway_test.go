@@ -75,6 +75,8 @@ func TestLoginPageSettlesStandaloneIOSKeyboardBeforeSubmit(t *testing.T) {
 	body := response.Body.String()
 	for _, expected := range []string{
 		`id="login-form"`,
+		`name="theme-color" content="#090b10"`,
+		`background: #090b10`,
 		`document.activeElement?.blur()`,
 		`window.scrollTo(0, 0)`,
 		`HTMLFormElement.prototype.submit.call(form)`,

@@ -28,9 +28,10 @@ var loginTemplate = template.Must(template.New("login").Parse(`<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#090b10">
   <title>HerdrTTY</title>
   <style>
-    :root { color-scheme: dark; font: 16px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    :root { color-scheme: dark; background: #090b10; font: 16px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
     * { box-sizing: border-box; }
     body { min-height: 100dvh; margin: 0; display: grid; place-items: center; padding: 24px; background: #090b10; color: #e6e9ef; }
     main { width: min(100%, 360px); }
