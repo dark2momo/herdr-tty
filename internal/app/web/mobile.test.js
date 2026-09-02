@@ -467,6 +467,20 @@ function loadTouchMobile({
       await Promise.resolve();
       await Promise.resolve();
     },
+    clickPage(element) {
+      let prevented = false;
+      let stopped = false;
+      dispatchDocument("click", {
+        target: element,
+        preventDefault() {
+          prevented = true;
+        },
+        stopImmediatePropagation() {
+          stopped = true;
+        },
+      });
+      return { prevented, stopped };
+    },
     trigger(element, name) {
       const event = { preventDefault() {}, stopPropagation() {} };
       for (const listener of element.listeners.get(name) || []) listener(event);
@@ -771,6 +785,34 @@ test("reconnect input dispatches ttyd Enter and preserves the draft", async () =
   assert.equal(runtime.pasteInput.value, "");
   assert.deepEqual(runtime.terminalPastes, ["keep this command"]);
   assert.deepEqual(runtime.terminalInputs, [{ data: "\r", wasUserInput: true }]);
+});
+
+test("any page click reconnects once when the connection is closed", () => {
+  const runtime = loadTouchMobile();
+
+  assert.deepEqual(runtime.clickPage(runtime.terminal), {
+    prevented: false,
+    stopped: false,
+  });
+  assert.equal(runtime.keyboardEvents.length, 0);
+
+  runtime.pasteInput.value = "keep this command";
+  runtime.setConnectionOverlay("Connection Closed");
+
+  assert.deepEqual(runtime.clickPage(runtime.terminal), {
+    prevented: true,
+    stopped: true,
+  });
+  assert.equal(runtime.keyboardEvents.length, 1);
+  assert.equal(runtime.keyboardEvents[0].key, "Enter");
+  assert.equal(runtime.pasteInput.value, "keep this command");
+  assert.equal(runtime.toolbarButton("input").disabled, true);
+
+  assert.deepEqual(runtime.clickPage(runtime.pasteInput), {
+    prevented: false,
+    stopped: false,
+  });
+  assert.equal(runtime.keyboardEvents.length, 1);
 });
 
 test("reconnecting disables terminal actions without disabling draft editing", async () => {

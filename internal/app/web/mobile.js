@@ -419,6 +419,18 @@
       );
     }
 
+    document.addEventListener(
+      "click",
+      (event) => {
+        if (connectionState === "reconnecting") return;
+        if (updateConnectionState() !== "reconnect-required") return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        reconnectTerminal();
+      },
+      { capture: true },
+    );
+
     renderConnectionState(overlayConnectionState());
     new MutationObserver(updateConnectionState).observe(terminal, {
       characterData: true,

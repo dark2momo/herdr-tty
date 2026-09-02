@@ -139,9 +139,10 @@ Options:
   virtual keyboard's Return key remains the native way to add a line break.
 - Herdr's text-entry dialogs for names and new worktrees automatically focus
   the mobile paste input after the dialog appears.
-- At ttyd's reconnect prompt, Input reconnects through ttyd's native Enter-key
-  path without clearing the draft. Both actions pause while reconnecting, and
-  the preserved draft requires a second Input tap after the connection returns.
+- At ttyd's reconnect prompt, tapping anywhere reconnects through ttyd's native
+  Enter-key path without clearing the draft. Further taps pause while
+  reconnecting, and a preserved draft still requires Input after the connection
+  returns.
 - A two-finger tap sends a right mouse click to Herdr.
 - The terminal follows `visualViewport` when a mobile keyboard changes the
   visible area, including iOS viewport offsets.
