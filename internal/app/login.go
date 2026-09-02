@@ -60,19 +60,15 @@ var loginTemplate = template.Must(template.New("login").Parse(`<!doctype html>
   </main>
   <script>
     (() => {
-      const userAgent = navigator.userAgent;
-      const isTouchApple =
-        /\b(iPad|iPhone|iPod)\b/.test(userAgent) ||
-        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-      const isStandalone =
-        navigator.standalone === true ||
-        window.matchMedia?.("(display-mode: standalone)").matches === true;
-      if (!isTouchApple || !isStandalone) return;
+      const isTouch =
+        navigator.maxTouchPoints > 0 ||
+        window.matchMedia?.("(pointer: coarse)").matches === true;
+      if (!isTouch) return;
 
       const form = document.getElementById("login-form");
       form.addEventListener("submit", (event) => {
-        if (form.dataset.submitting === "true") return;
         event.preventDefault();
+        if (form.dataset.submitting === "true") return;
         form.dataset.submitting = "true";
         form.querySelector('button[type="submit"]').disabled = true;
         document.activeElement?.blur();
